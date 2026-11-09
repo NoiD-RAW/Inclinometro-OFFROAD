@@ -37,6 +37,13 @@ object Config {
         get() = FloatArray(4) { prefs.getFloat("max$it", 0f) }
         set(v) { val e = prefs.edit(); for (i in 0..3) e.putFloat("max$i", v[i]); e.apply() }
 
+    // ---------- salidas ----------
+    /** Intervalo entre muestras guardadas durante una salida. */
+    var sampleMs: Long get() = prefs.getLong("sampleMs", 1000L); set(v) = prefs.edit().putLong("sampleMs", v).apply()
+    /** Salida en curso (-1 si no hay) y su hora de inicio. Se guardan para retomarla si el sistema cierra la app. */
+    var activeTrip: Long get() = prefs.getLong("activeTrip", -1L); set(v) = prefs.edit().putLong("activeTrip", v).commit().let {}
+    var activeStart: Long get() = prefs.getLong("activeStart", 0L); set(v) = prefs.edit().putLong("activeStart", v).commit().let {}
+
     // ---------- mini ventana ----------
     var autoPip: Boolean get() = prefs.getBoolean("autoPip", true); set(v) = prefs.edit().putBoolean("autoPip", v).apply()
 

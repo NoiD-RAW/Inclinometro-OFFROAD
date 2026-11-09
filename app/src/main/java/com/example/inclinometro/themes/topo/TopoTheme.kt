@@ -7,6 +7,8 @@ import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
 import android.util.Rational
 import android.view.Gravity
 import android.view.View
@@ -17,6 +19,7 @@ import com.example.inclinometro.Alerts
 import com.example.inclinometro.Chrome
 import com.example.inclinometro.Dash
 import com.example.inclinometro.IconButtonView
+import com.example.inclinometro.Recorder
 import com.example.inclinometro.DashActions
 import com.example.inclinometro.DashState
 import com.example.inclinometro.Theme
@@ -71,17 +74,27 @@ class TopoDash(ctx: Context, private val actions: DashActions) : LinearLayout(ct
     private val buttonRow = LinearLayout(ctx)
     private val topBar = LinearLayout(ctx)
     private val gear = IconButtonView(ctx, { c, x, y, r, p -> Chrome.drawGear(c, x, y, r, accent, p) }, "Ajustes") { actions.onSettings() }
+    private val history = IconButtonView(ctx, { c, x, y, r, p -> Chrome.drawHistory(c, x, y, r, accent, p) }, "Historial de salidas") { actions.onHistory() }
+    /** Punto rojo + tiempo, sobre una pastilla oscura para que se lea también con el fondo rojo de peligro. */
+    private val recLabel = TextView(ctx).apply {
+        textSize = 20f; setTypeface(Typeface.DEFAULT_BOLD); setTextColor(Color.WHITE); setPadding(dp(14), dp(6), dp(16), dp(6)); visibility = View.GONE
+        background = GradientDrawable().apply { setColor(Color.argb(230, 16, 16, 18)); cornerRadius = dp(20).toFloat() }
+    }
+    private var recording: Boolean? = null; private var shownSecond = -1L
     override val view: View get() = this
     private var lastBg = 0
     override var accent: Int = TopoTheme.defaultAccent
-        set(v) { field = v; pitchView.accent = v; rollView.accent = v; compassView.accent = v; gear.invalidate(); buildButtons() }
+        set(v) { field = v; pitchView.accent = v; rollView.accent = v; compassView.accent = v; gear.invalidate(); history.invalidate(); buildButtons() }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     init {
         orientation = VERTICAL; setBackgroundColor(TopoTheme.ui.background)
         buttonRow.apply { orientation = HORIZONTAL; gravity = Gravity.CENTER }
-        topBar.apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL or Gravity.END; addView(gear, LayoutParams(dp(56), dp(56))) }
+        topBar.apply {
+            orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            addView(recLabel, LayoutParams(-2, -2).apply { leftMargin = dp(10) }); addView(View(ctx), LayoutParams(0, 1, 1f)); addView(history, LayoutParams(dp(56), dp(56))); addView(gear, LayoutParams(dp(56), dp(56)))
+        }
         addView(topBar, LayoutParams(-1, -2)); addView(gauges, LayoutParams(-1, 0, 1f)); addView(buttonRow, LayoutParams(-1, -2))
         applyLayout(true); accent = TopoTheme.defaultAccent
         gauges.addOnLayoutChangeListener { _, l, t, r, bt, _, _, _, _ ->           // en pantalla dividida elige fila o columna
@@ -98,8 +111,12 @@ class TopoDash(ctx: Context, private val actions: DashActions) : LinearLayout(ct
         super.onMeasure(wSpec, hSpec)
     }
 
+    /** Botón grande de salidas (la calibración se hace desde Ajustes, para no tocarla en marcha). */
     private fun buildButtons() {
-        buttonRow.removeAllViews(); buttonRow.visibility = View.GONE              // la calibración se hace desde Ajustes, para no tocarla en marcha
+        buttonRow.removeAllViews()
+        val rec = recording == true
+        buttonRow.addView(TopoTheme.ui.button(context, if (rec) "■  Finalizar salida" else "●  Iniciar salida", !rec, accent) { actions.onTrip() }.apply { textSize = 18f },
+            LayoutParams(0, dp(56), 1f).apply { setMargins(dp(8), dp(4), dp(8), dp(8)) })
     }
     private fun applyLayout(horizontal: Boolean) {
         gauges.orientation = if (horizontal) HORIZONTAL else VERTICAL
@@ -112,9 +129,14 @@ class TopoDash(ctx: Context, private val actions: DashActions) : LinearLayout(ct
         pitchView.angle = s.pitch; rollView.angle = s.roll
         pitchView.level = s.pitchLevel; rollView.level = s.rollLevel
         pitchView.maxLo = s.max[1]; pitchView.maxHi = s.max[0]; rollView.maxLo = s.max[2]; rollView.maxHi = s.max[3]
+        if (s.recording != recording) { recording = s.recording; buildButtons(); recLabel.visibility = if (s.recording) View.VISIBLE else View.GONE }
+        if (s.recording && s.elapsed / 1000 != shownSecond) {
+            shownSecond = s.elapsed / 1000
+            recLabel.text = SpannableString("●  " + Recorder.clock(s.elapsed)).apply { setSpan(ForegroundColorSpan(Chrome.REC), 0, 1, 0) }
+        }
         val bg = if (s.level == Alerts.DANGER) TopoTheme.danger else TopoTheme.ui.background                  // zona de peligro: fondo rojo
         if (bg != lastBg) { lastBg = bg; setBackgroundColor(bg) }
         compassView.update(s.heading, s.kmh, s.gps && s.kmh >= 4f, s.altitude)
     }
-    override fun setPip(pip: Boolean) { topBar.visibility = if (pip) View.GONE else View.VISIBLE }
+    override fun setPip(pip: Boolean) { val v = if (pip) View.GONE else View.VISIBLE; buttonRow.visibility = v; topBar.visibility = v }
 }

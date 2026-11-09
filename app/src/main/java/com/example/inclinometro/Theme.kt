@@ -41,7 +41,7 @@ interface Dash {
 }
 
 /** Lo que pasa al tocar los controles de la pantalla principal. */
-class DashActions(val onSettings: () -> Unit = {})
+class DashActions(val onSettings: () -> Unit = {}, val onHistory: () -> Unit = {}, val onTrip: () -> Unit = {})
 
 /** Datos que muestra la pantalla principal, iguales para todos los temas. */
 class DashState {
@@ -54,12 +54,16 @@ class DashState {
     val level get() = maxOf(pitchLevel, rollLevel)
     /** Máximos registrados en grados positivos: morro arriba, morro abajo, alabeo izquierda, alabeo derecha. */
     val max = FloatArray(4)
+    /** Hay una salida grabándose y desde cuándo (para mostrar punto rojo y tiempo). */
+    var recording = false; var recordStart = 0L
+    val elapsed get() = if (recording) System.currentTimeMillis() - recordStart else 0L
 
     fun fromEngine(): DashState {
         roll = Engine.roll; pitch = Engine.pitch; heading = Engine.heading; altitude = Engine.altitude
         kmh = Engine.kmh; gps = Engine.gpsFresh
         pitchLevel = Alerts.pitchLevel; rollLevel = Alerts.rollLevel
-        Engine.maxima.max.copyInto(max); return this
+        Engine.maxima.max.copyInto(max)
+        recording = Recorder.active; recordStart = Recorder.start; return this
     }
     companion object {
         /** Valores de ejemplo para las miniaturas del selector de tema. */

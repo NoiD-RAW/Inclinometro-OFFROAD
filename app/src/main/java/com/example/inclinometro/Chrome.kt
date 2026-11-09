@@ -30,6 +30,21 @@ object Chrome {
         p.style = Paint.Style.FILL; p.shader = null; p.color = color; c.drawPath(path, p)
     }
 
+    /** Historial: reloj con una flecha que gira hacia atrás. */
+    fun drawHistory(c: Canvas, cx: Float, cy: Float, r: Float, color: Int, p: Paint) {
+        val sw = r * 0.17f; val rr = r * 0.8f
+        p.shader = null; p.color = color; p.style = Paint.Style.STROKE; p.strokeWidth = sw; p.strokeCap = Paint.Cap.ROUND
+        c.drawArc(cx - rr, cy - rr, cx + rr, cy + rr, 215f, 290f, false, p)                    // esfera abierta por arriba a la izquierda
+        c.drawLine(cx, cy, cx, cy - rr * 0.55f, p); c.drawLine(cx, cy, cx + rr * 0.4f, cy + rr * 0.25f, p)   // agujas
+        val a = Math.toRadians(215.0); val ax = cx + rr * cos(a).toFloat(); val ay = cy + rr * sin(a).toFloat()
+        p.style = Paint.Style.FILL                                                             // punta de flecha al inicio del arco
+        c.drawPath(Path().apply { moveTo(ax - r * 0.42f, ay - r * 0.05f); lineTo(ax + r * 0.12f, ay - r * 0.12f); lineTo(ax - r * 0.1f, ay + r * 0.42f); close() }, p)
+        p.strokeCap = Paint.Cap.BUTT
+    }
+
+    /** Rojo del punto de grabación. */
+    const val REC = 0xFFFF3B30.toInt()
+
     /** Márgenes que la vista [v] debe dejar libres por la barra de estado, la de navegación o el notch (0 si ya no los toca). */
     fun safeInsets(v: View): Rect {
         val ins = v.rootWindowInsets ?: return Rect()

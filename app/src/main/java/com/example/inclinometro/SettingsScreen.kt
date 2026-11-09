@@ -76,6 +76,13 @@ class SettingsScreen(private val a: MainActivity) {
             button("Resetear máximos", false) {
                 Dialogs.confirm(ctx, "Resetear máximos", "Se borrarán los máximos registrados de cabeceo y alabeo.", "Resetear") { Engine.resetMaxima(); a.rebuildSettings() }
             }))
+        val trips = ui.section(ctx, "Salidas", accent, listOf(
+            ui.note(ctx, "Durante una salida se guardan cabeceo, alabeo y, con GPS, posición, altitud y velocidad. Sigue grabando aunque cambies de app."),
+            button("Ver histórico de salidas", true) { a.openHistory() },
+            button("Guardar una muestra cada ${sampleLabel(Config.sampleMs)}  (toca para cambiar)", false) {
+                val i = samples.indexOf(Config.sampleMs); Config.sampleMs = samples[(i + 1) % samples.size]; a.rebuildSettings()
+            },
+            ui.note(ctx, "Las salidas ocupan ${Fmt.mb(TripDb.get(ctx).sizeBytes(ctx))}. Puedes liberar espacio desde el histórico.")))
         val sensor = ui.section(ctx, "Montaje del sensor", accent, listOf(
             ui.note(ctx, "Cambiar el montaje o los ejes restablece la calibración."),
             button(if (Config.flat) "Montaje: plano" else "Montaje: vertical", false) { Config.flat = !Config.flat; Engine.resetCal(); a.rebuildSettings() },
@@ -94,7 +101,7 @@ class SettingsScreen(private val a: MainActivity) {
             if (wide) {                                                         // pantallas anchas: dos columnas
                 addView(LinearLayout(ctx).apply {
                     orientation = LinearLayout.VERTICAL
-                    addView(themes, LinearLayout.LayoutParams(-1, -2)); addView(vehicle, gap()); addView(color, gap()); addView(pip, gap())
+                    addView(themes, LinearLayout.LayoutParams(-1, -2)); addView(trips, gap()); addView(vehicle, gap()); addView(color, gap()); addView(pip, gap())
                 }, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = dp(8) })
                 addView(LinearLayout(ctx).apply {
                     orientation = LinearLayout.VERTICAL
@@ -102,7 +109,7 @@ class SettingsScreen(private val a: MainActivity) {
                 }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(8) })
             } else {
                 addView(themes, LinearLayout.LayoutParams(-1, -2))
-                for (v in listOf(calibration, limits, maxima, sensor, vehicle, color, pip)) addView(v, gap())
+                for (v in listOf(trips, calibration, limits, maxima, sensor, vehicle, color, pip)) addView(v, gap())
             }
         }
         val header = LinearLayout(ctx).apply {
@@ -117,6 +124,10 @@ class SettingsScreen(private val a: MainActivity) {
         }
         return ScrollView(ctx).apply { background = ui.backgroundDrawable(ctx); addView(col) }
     }
+
+    // ---------- salidas ----------
+    private val samples = listOf(500L, 1000L, 2000L, 5000L)
+    private fun sampleLabel(ms: Long) = if (ms == 1000L) "segundo" else String.format("%.1f s", ms / 1000f).replace(".0 ", " ").replace('.', ',')
 
     // ---------- límites y máximos ----------
     private val windows = listOf(0L, 250L, 500L, 1000L, 2000L)

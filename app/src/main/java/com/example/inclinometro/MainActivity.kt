@@ -32,6 +32,8 @@ class MainActivity : Activity() {
 
     private val reqOf = mapOf("side" to 11, "rear" to 12, "top" to 13)
     private val chain = mutableListOf<String>()          // "Subir fotos": lateral, trasera y superior, una tras otra
+    private var startTripAfterPermission = false
+    private var internalNav = false                      // abriendo otra pantalla de la app: no pasar a mini ventana
 
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
@@ -47,18 +49,46 @@ class MainActivity : Activity() {
         dashBox.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> applySafeInsets() }
         refreshVehicle(); updatePipParams()
         // Sin permiso de ubicación la app funciona igual, pero sin rumbo GPS, altitud ni velocidad: se pide al abrir mientras no esté concedido.
-        if (!Engine.hasLocationPermission(this) && Build.VERSION.SDK_INT >= 23) requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
+        if (!Engine.hasLocationPermission(this) && Build.VERSION.SDK_INT >= 23) requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 1)
     }
 
-    override fun onStart() { super.onStart(); Engine.listeners += onEngine; Engine.acquire(this, this) }          // sigue activo en mini ventana
+    override fun onStart() { super.onStart(); Engine.listeners += onEngine; Engine.acquire(this, this); Recorder.ensureRunning(this) }   // sigue activo en mini ventana
+    override fun onResume() { super.onResume(); if (internalNav) { internalNav = false; updatePipParams() } }
     override fun onStop() { super.onStop(); Engine.listeners -= onEngine; Engine.release(this) }
     override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, res: IntArray) {
         super.onRequestPermissionsResult(code, perms, res)
-        if (res.isNotEmpty() && res[0] == PackageManager.PERMISSION_GRANTED) Engine.startGps()
+        if (Engine.hasLocationPermission(this)) Engine.startGps()
+        if (code == 2 && startTripAfterPermission) { startTripAfterPermission = false; beginTrip() }
+    }
+
+    // ---------- salidas ----------
+    private fun toggleTrip() {
+        if (Recorder.active) {
+            Dialogs.confirm(this, "Finalizar salida", "La salida lleva ${Recorder.clock(System.currentTimeMillis() - Recorder.start)}. Se guardará en el histórico.", "Finalizar") {
+                Recorder.stop(this); Toast.makeText(this, "Salida guardada en el histórico", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+        val missing = ArrayList<String>()
+        if (!Engine.hasLocationPermission(this)) { missing += Manifest.permission.ACCESS_FINE_LOCATION; missing += Manifest.permission.ACCESS_COARSE_LOCATION }
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) missing += Manifest.permission.POST_NOTIFICATIONS
+        if (missing.isEmpty() || Build.VERSION.SDK_INT < 23) { beginTrip(); return }
+        if (!Engine.hasLocationPermission(this))
+            Dialogs.choice(this, "Ubicación para la salida",
+                "La ubicación se usa para guardar el recorrido (posición, altitud y velocidad) y verlo después en el mapa con las inclinaciones. " +
+                    "No sale del dispositivo. Sin ella, la salida se graba igual, pero sin posición.", "Permitir", "Grabar sin GPS",
+                { startTripAfterPermission = true; requestPermissions(missing.toTypedArray(), 2) },
+                { missing.removeAll { it != Manifest.permission.POST_NOTIFICATIONS }; if (missing.isEmpty()) beginTrip() else { startTripAfterPermission = true; requestPermissions(missing.toTypedArray(), 2) } })
+        else { startTripAfterPermission = true; requestPermissions(missing.toTypedArray(), 2) }        // aviso de «grabando» en la barra de notificaciones
+    }
+    private fun beginTrip() { Recorder.start(this); Toast.makeText(this, "Salida iniciada", Toast.LENGTH_SHORT).show() }
+    fun openHistory() {
+        internalNav = true; updatePipParams()
+        startActivity(Intent(this, HistoryActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION))
     }
 
     // ---------- tema ----------
-    private fun createDash() = appTheme.createDash(this, DashActions(onSettings = { showSettings() })).also { it.accent = Themes.accent(appTheme) }
+    private fun createDash() = appTheme.createDash(this, DashActions(onSettings = { showSettings() }, onHistory = { openHistory() }, onTrip = { toggleTrip() })).also { it.accent = Themes.accent(appTheme) }
 
     /** Cambia de tema al momento: la calibración y el resto de datos no dependen de la pantalla, así que no se pierde nada. */
     fun applyTheme(id: String) {
@@ -93,7 +123,7 @@ class MainActivity : Activity() {
     private fun pipSupported() = Build.VERSION.SDK_INT >= 26 && packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
     private fun pipParams(): PictureInPictureParams {
         val b = PictureInPictureParams.Builder().setAspectRatio(appTheme.pipAspect)
-        if (Build.VERSION.SDK_INT >= 31) b.setAutoEnterEnabled(Config.autoPip && dashBox.visibility == View.VISIBLE)     // solo desde la pantalla principal
+        if (Build.VERSION.SDK_INT >= 31) b.setAutoEnterEnabled(Config.autoPip && !internalNav && dashBox.visibility == View.VISIBLE)     // solo desde la pantalla principal
         return b.build()
     }
     fun updatePipParams() { if (Build.VERSION.SDK_INT >= 31 && pipSupported()) try { setPictureInPictureParams(pipParams()) } catch (_: Exception) {} }
@@ -109,7 +139,7 @@ class MainActivity : Activity() {
         } catch (e: Exception) { if (!silent) Toast.makeText(this, "No se pudo abrir la mini ventana: ${e.message}", Toast.LENGTH_LONG).show() }
     }
     /** Al pulsar Inicio desde la pantalla principal, la app pasa a mini ventana en vez de cerrarse (si la opción está activada). */
-    override fun onUserLeaveHint() { super.onUserLeaveHint(); if (Config.autoPip && dashBox.visibility == View.VISIBLE) enterPip(true) }
+    override fun onUserLeaveHint() { super.onUserLeaveHint(); if (Config.autoPip && !internalNav && dashBox.visibility == View.VISIBLE) enterPip(true) }
     override fun onPictureInPictureModeChanged(inPip: Boolean, cfg: Configuration) { super.onPictureInPictureModeChanged(inPip, cfg); dash.setPip(inPip) }
 
     // ---------- imágenes del vehículo (se guardan en el tema activo) ----------

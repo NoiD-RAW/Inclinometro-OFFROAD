@@ -6,6 +6,7 @@ import com.example.inclinometro.Dash
 import com.example.inclinometro.DashActions
 import com.example.inclinometro.DashState
 import com.example.inclinometro.R
+import com.example.inclinometro.Recorder
 
 import android.content.Context
 import android.graphics.*
@@ -23,6 +24,9 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
     private var kmh = 0f; private var gps = false
     private var pitchLevel = Alerts.OK; private var rollLevel = Alerts.OK
     private val maxv = FloatArray(4)
+    private var recording = false; private var elapsed = 0L
+    private val histRect = RectF()
+    private val tripC = PointF(); private var tripR = 0f; private var tripDown = false
     private var side: Bitmap? = null; private var rear: Bitmap? = null
     /** Color principal (por defecto naranja). Solo cambia las partes que eran naranjas. */
     override var accent: Int = Color.rgb(255, 122, 26)
@@ -31,7 +35,7 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
 
     override fun update(s: DashState) {
         roll = s.roll.coerceIn(-40f, 40f); pitch = s.pitch.coerceIn(-40f, 40f); heading = s.heading; altitude = s.altitude; kmh = s.kmh; gps = s.gps
-        pitchLevel = s.pitchLevel; rollLevel = s.rollLevel; s.max.copyInto(maxv); invalidate()
+        pitchLevel = s.pitchLevel; rollLevel = s.rollLevel; s.max.copyInto(maxv); recording = s.recording; elapsed = s.elapsed; invalidate()
     }
     override fun setVehicle(side: Bitmap, rear: Bitmap, top: Bitmap) { this.side = side; this.rear = rear; invalidate() }
 
@@ -129,11 +133,12 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
         ui = (min(w, h * 0.5625f) / 1440f).coerceAtLeast(0.2f)
         tileFill(c, RectF(0f, 0f, w, h), 0f, 255)
         if (danger()) { p.style = Paint.Style.FILL; p.shader = null; p.color = IndustrialTheme.danger; c.drawRect(0f, 0f, w, h, p) }     // zona de peligro: fondo rojo
-        menuRect.setEmpty()
+        menuRect.setEmpty(); histRect.setEmpty(); tripR = 0f
         val m0 = 0.015f * min(w, h)
         if (w / d < 300f || h / d < 220f) {                         // minivista: solo los dos relojes
             if (w >= h * 1.2f) { val gw = (w - 3 * m0) / 2; gauge(c, RectF(m0, m0, m0 + gw, h - m0), "ALABEO", "", roll, true, true); gauge(c, RectF(2 * m0 + gw, m0, w - m0, h - m0), "CABECEO", "", pitch, false, true) }
             else { val gh = (h - 3 * m0) / 2; gauge(c, RectF(m0, m0, w - m0, m0 + gh), "ALABEO", "", roll, true, true); gauge(c, RectF(m0, 2 * m0 + gh, w - m0, h - m0), "CABECEO", "", pitch, false, true) }
+            if (recording) { p.style = Paint.Style.FILL; p.shader = null; p.color = Chrome.REC; val rr = 0.035f * min(w, h); c.drawCircle(m0 + 2.2f * rr, m0 + 2.2f * rr, rr, p) }   // grabando
             return
         }
         if (h > w * 0.9f) {                                          // vertical: proporciones del diseño de referencia
@@ -142,6 +147,14 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
             gauge(c, RectF(m, 0.0695f * h, w - m, 0.3398f * h), "ALABEO", "", roll, true, false)
             gauge(c, RectF(m, 0.3535f * h, w - m, 0.623f * h), "CABECEO", "", pitch, false, false)
             compassCard(c, RectF(m, 0.636f * h, 0.492f * w, 0.779f * h)); altCard(c, RectF(0.515f * w, 0.636f * h, w - m, 0.779f * h))
+            val y4 = 0.793f * h; val zh = 0.973f * h - y4
+            val zr = min(zh / 2, 0.15f * w); if (zr > 20f) tripButton(c, w / 2, y4 + zh / 2, zr)
+            if (recording) {                                                         // a la izquierda del botón: tiempo de la salida en grande
+                val tx = (w / 2 - zr) / 2; val ty = y4 + zh / 2; val sz = fit("00:00:00", 0.07f * h, w / 2 - zr - 2 * m)
+                p.style = Paint.Style.FILL; p.shader = null; p.color = Chrome.REC; c.drawCircle(tx, ty - sz * 0.95f, sz * 0.22f, p)
+                metalText(c, Recorder.clock(elapsed), tx, ty + sz * 0.35f, sz, silverTop, silverBot, Paint.Align.CENTER)
+                text(c, "GRABANDO", tx, ty + sz * 0.95f, sz * 0.32f, Color.rgb(200, 200, 205))
+            }
         } else {                                                     // horizontal
             val m = m0; val hh = 0.10f * h; val gh = 0.56f * h; val gw = (w - 3 * m) / 2
             header(c, w, hh)
@@ -149,6 +162,8 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
             gauge(c, RectF(2 * m + gw, hh + m, w - m, hh + m + gh), "CABECEO", "", pitch, false, false)
             val y3 = hh + 2 * m + gh; val ch = h - y3 - m; val cw = 0.34f * w
             compassCard(c, RectF(m, y3, m + cw, y3 + ch)); altCard(c, RectF(2 * m + cw, y3, 2 * m + 2 * cw, y3 + ch))
+            val zx0 = 3 * m + 2 * cw; val zr = min(ch / 2, (w - m - zx0) / 2)
+            if (zr > 20f) tripButton(c, (zx0 + w - m) / 2, y3 + ch / 2, zr)
         }
     }
 
@@ -160,9 +175,9 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
         if (danger()) { p.style = Paint.Style.FILL; p.color = Color.argb(170, Color.red(IndustrialTheme.danger), Color.green(IndustrialTheme.danger), Color.blue(IndustrialTheme.danger)); c.drawRect(0f, 0f, w, hh, p) }
         p.style = Paint.Style.STROKE; p.strokeWidth = 3f; p.color = Color.rgb(6, 6, 8); c.drawLine(0f, hh, w, hh, p)
         p.strokeWidth = 1.5f; p.color = Color.argb(120, 130, 130, 136); c.drawLine(0f, hh + 2f, w, hh + 2f, p)
-        img(c, aScrew, 0.04f * w, 0.2f * hh, 0.2f * hh / 48f)
+        if (!recording) img(c, aScrew, 0.04f * w, 0.2f * hh, 0.2f * hh / 48f)
         var ts = hh * 0.52f; val t1 = "INCLINÓMETRO "; val t2 = "OFFROAD"
-        for (i in 0 until 10) { if (2 * hh * 0.36f + hh * 0.2f + tw(t1, ts) + tw(t2, ts) <= w - 2.8f * hh) break; ts *= 0.9f }
+        for (i in 0 until 10) { if (2 * hh * 0.36f + hh * 0.2f + tw(t1, ts) + tw(t2, ts) <= w - 5.6f * hh) break; ts *= 0.9f }   // a cada lado, sitio para dos iconos
         val w1 = tw(t1, ts); val w2 = tw(t2, ts); val lr = hh * 0.38f
         var x = (w - (2 * lr + hh * 0.2f + w1 + w2)) / 2; val lcx = x + lr; val lcy = hh / 2
         p.style = Paint.Style.STROKE; p.strokeWidth = max(2f, lr * 0.12f); p.color = accent; c.drawCircle(lcx, lcy, lr, p)
@@ -172,8 +187,15 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
         x += 2 * lr + hh * 0.2f; val by = lcy + ts * 0.34f
         metalText(c, t1, x, by, ts, silverTop, silverBot); metalText(c, t2, x + w1, by, ts, aLight, accent)
         val tz = max(hh, Chrome.minTouch(context))                                   // rueda dentada de Ajustes: área táctil de al menos 48 dp
-        Chrome.drawGear(c, w - hh * 0.62f, lcy, hh * 0.32f, accent, p)
-        menuRect.set(w - max(hh * 1.3f, tz), 0f, w, tz)
+        val iw = max(hh * 1.3f, tz)
+        Chrome.drawGear(c, w - iw / 2, lcy, hh * 0.32f, accent, p)
+        menuRect.set(w - iw, 0f, w, tz)
+        Chrome.drawHistory(c, w - iw * 1.5f, lcy, hh * 0.32f, accent, p)                // historial de salidas, junto a la rueda
+        histRect.set(w - 2 * iw, 0f, w - iw, tz)
+        if (recording) {                                                             // punto rojo + tiempo, a la izquierda
+            p.style = Paint.Style.FILL; p.color = Chrome.REC; c.drawCircle(hh * 0.5f, lcy, hh * 0.16f, p)
+            metalText(c, Recorder.clock(elapsed), hh * 0.85f, lcy + hh * 0.15f, fit("0:00:00", hh * 0.42f, hh * 1.9f), silverTop, silverBot)
+        }
     }
 
     private fun gauge(c: Canvas, r: RectF, title: String, sub: String, v: Float, isRear: Boolean, mini: Boolean) {
@@ -275,11 +297,25 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
         }
     }
 
+    /** Botón de salidas con el diseño del antiguo botón ZERO: punto para iniciar, cuadrado para finalizar. */
+    private fun tripButton(c: Canvas, cx: Float, cy: Float, r: Float) {
+        tripC.set(cx, cy); tripR = r
+        img(c, aZero, cx, cy, 2f * r / 428f, accentFilter(tripDown))                 // el naranja toma el color elegido
+        val ink = Color.rgb(32, 22, 14); val my = cy - r * 0.14f; val ar = r * 0.3f
+        p.style = Paint.Style.FILL; p.shader = null
+        if (recording) { p.color = ink; c.drawRect(cx - ar * 0.8f, my - ar * 0.8f, cx + ar * 0.8f, my + ar * 0.8f, p) }
+        else { p.color = ink; c.drawCircle(cx, my, ar * 1.05f, p); p.color = Chrome.REC; c.drawCircle(cx, my, ar * 0.8f, p) }
+        text(c, if (recording) "FINALIZAR" else "INICIAR", cx, cy + 0.62f * r, fit(if (recording) "FINALIZAR" else "INICIAR", 0.24f * r, 1.1f * r), ink, Paint.Align.CENTER, 0f, titleFont)
+    }
+
     override fun onTouchEvent(e: MotionEvent): Boolean {
         val inMenu = !menuRect.isEmpty && menuRect.contains(e.x, e.y)
+        val inHist = !histRect.isEmpty && histRect.contains(e.x, e.y)
+        val inTrip = tripR > 0 && hypot(e.x - tripC.x, e.y - tripC.y) <= tripR
         when (e.action) {
-            MotionEvent.ACTION_DOWN -> return inMenu
-            MotionEvent.ACTION_UP -> if (inMenu) actions.onSettings()
+            MotionEvent.ACTION_DOWN -> { if (inTrip) { tripDown = true; invalidate() }; return inMenu || inHist || inTrip }
+            MotionEvent.ACTION_UP -> { tripDown = false; invalidate(); if (inMenu) actions.onSettings() else if (inHist) actions.onHistory() else if (inTrip) actions.onTrip() }
+            MotionEvent.ACTION_CANCEL -> { tripDown = false; invalidate() }
         }
         return true
     }
