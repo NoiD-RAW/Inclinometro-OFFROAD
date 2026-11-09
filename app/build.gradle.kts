@@ -12,6 +12,19 @@ android {
         versionCode = 2
         versionName = "2.0"
     }
+    // Firma de las versiones publicadas: la clave llega por variables de entorno (secretos de GitHub Actions), nunca en el repositorio.
+    val keystore = System.getenv("KEYSTORE_FILE")
+    signingConfigs {
+        if (keystore != null) create("release") {
+            storeFile = file(keystore)
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
+        }
+    }
+    buildTypes {
+        getByName("release") { if (keystore != null) signingConfig = signingConfigs.getByName("release") }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
