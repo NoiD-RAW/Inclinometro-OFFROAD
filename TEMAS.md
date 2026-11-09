@@ -25,7 +25,7 @@ Los dos que trae la app sirven de ejemplo:
 
 2. **Haz la pantalla principal** implementando `Dash`:
    - `update(s: DashState)` se llama en cada lectura del sensor (unas 50 veces por segundo). Solo guarda los valores y llama a `invalidate()`.
-     `DashState` trae los ángulos, rumbo, altitud y velocidad.
+     `DashState` trae los ángulos, rumbo, altitud, velocidad, nivel de aviso de cada eje y máximos registrados.
    - `setVehicle(side, rear, top)` recibe las imágenes del vehículo ya preparadas.
    - `accent`: color principal elegido por el usuario.
    - `setPip(pip)`: oculta los botones en la mini ventana.
@@ -41,9 +41,20 @@ Los dos que trae la app sirven de ejemplo:
 
 ## Colores de aviso
 
-`caution` (ámbar) y `danger` (rojo) son los tonos del tema para los avisos de inclinación.
+La app avisa en dos niveles, en todos los temas (`DashState.pitchLevel` / `rollLevel`, con valores de `Alerts`):
+
+- **Precaución** (por defecto, al 80 % del límite del vehículo): el reloj afectado se marca con `caution` (ámbar) y el texto «PRECAUCIÓN».
+- **Peligro** (al llegar al límite): el fondo de la pantalla pasa a `danger` (rojo) y aparece el texto «PELIGRO».
+
+La histéresis (no oscilar cuando el ángulo ronda el umbral) ya la aplica `Alerts`: el tema solo dibuja el nivel que recibe.
+
+Cada tema elige sus tonos, pero:
+- `caution` debe ser un ámbar o amarillo claro y `danger` un rojo, para que el significado sea el de siempre.
+- Además del color, el aviso siempre lleva texto. Así se entiende aunque el color principal del usuario se parezca al ámbar (naranja, amarillo).
+- Los textos y relojes deben seguir leyéndose sobre el fondo `danger`: usa paneles oscuros o texto blanco encima.
 
 ## Comprobar el tema
 
 - Ajustes → Tema: debe aparecer la miniatura y cambiar al momento sin perder la calibración.
 - Gira la pantalla (vertical y horizontal) y abre la mini ventana.
+- Simula inclinaciones en el emulador (ver README) para comprobar precaución y peligro.

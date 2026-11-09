@@ -17,6 +17,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import kotlin.math.roundToInt
 
 /** Pantalla de Ajustes, construida con las piezas del tema activo. Se reconstruye entera al cambiar algo. */
 class SettingsScreen(private val a: MainActivity) {
@@ -56,6 +57,25 @@ class SettingsScreen(private val a: MainActivity) {
                     Engine.resetCal(); Toast.makeText(ctx, "Calibración restablecida", Toast.LENGTH_SHORT).show(); a.rebuildSettings()
                 }
             }))
+        val limits = ui.section(ctx, "Límites del vehículo y avisos", accent, listOf(
+            ui.note(ctx, "Ángulo máximo que admite tu vehículo. Al acercarte (zona de precaución) el reloj se marca en ámbar; al llegar al límite el fondo pasa a rojo."),
+            stepper("Límite de cabeceo", { "${Config.limitPitch.roundToInt()}°" }) { d -> Config.limitPitch = (Config.limitPitch + d).coerceIn(5f, 60f) },
+            stepper("Límite de alabeo", { "${Config.limitRoll.roundToInt()}°" }) { d -> Config.limitRoll = (Config.limitRoll + d).coerceIn(5f, 60f) },
+            stepper("Zona de precaución", { "${(Config.cautionPct * 100).roundToInt()} % del límite" }) { d -> Config.cautionPct = ((Config.cautionPct * 100).roundToInt() + 5 * d).coerceIn(50, 95) / 100f },
+            button("Usar máximos registrados como límites", false) { useMaximaAsLimits() },
+            button(if (Config.vibrate) "Vibración al entrar en peligro: sí" else "Vibración al entrar en peligro: no", false) { Config.vibrate = !Config.vibrate; a.rebuildSettings() },
+            button(if (Config.beep) "Pitido al entrar en peligro: sí" else "Pitido al entrar en peligro: no", false) { Config.beep = !Config.beep; a.rebuildSettings() }))
+        val m = Engine.maxima.max
+        val maxima = ui.section(ctx, "Máximos registrados", accent, listOf(
+            ui.label(ctx, "Cabeceo:  morro arriba ${m[0].roundToInt()}° · morro abajo ${m[1].roundToInt()}°", 15f, ui.text),
+            ui.label(ctx, "Alabeo:  izquierda ${m[2].roundToInt()}° · derecha ${m[3].roundToInt()}°", 15f, ui.text),
+            ui.note(ctx, "Para que un bache no deje un pico falso, un ángulo solo cuenta como máximo si se mantiene el tiempo del filtro."),
+            button("Filtro de baches: ${windowLabel(Config.maxWindowMs)}  (toca para cambiar)", false) {
+                val i = windows.indexOf(Config.maxWindowMs); Config.maxWindowMs = windows[(i + 1) % windows.size]; a.rebuildSettings()
+            },
+            button("Resetear máximos", false) {
+                Dialogs.confirm(ctx, "Resetear máximos", "Se borrarán los máximos registrados de cabeceo y alabeo.", "Resetear") { Engine.resetMaxima(); a.rebuildSettings() }
+            }))
         val sensor = ui.section(ctx, "Montaje del sensor", accent, listOf(
             ui.note(ctx, "Cambiar el montaje o los ejes restablece la calibración."),
             button(if (Config.flat) "Montaje: plano" else "Montaje: vertical", false) { Config.flat = !Config.flat; Engine.resetCal(); a.rebuildSettings() },
@@ -74,15 +94,15 @@ class SettingsScreen(private val a: MainActivity) {
             if (wide) {                                                         // pantallas anchas: dos columnas
                 addView(LinearLayout(ctx).apply {
                     orientation = LinearLayout.VERTICAL
-                    addView(themes, LinearLayout.LayoutParams(-1, -2)); addView(vehicle, gap())
+                    addView(themes, LinearLayout.LayoutParams(-1, -2)); addView(vehicle, gap()); addView(color, gap()); addView(pip, gap())
                 }, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = dp(8) })
                 addView(LinearLayout(ctx).apply {
                     orientation = LinearLayout.VERTICAL
-                    addView(calibration, LinearLayout.LayoutParams(-1, -2)); addView(sensor, gap()); addView(color, gap()); addView(pip, gap())
+                    addView(calibration, LinearLayout.LayoutParams(-1, -2)); addView(limits, gap()); addView(maxima, gap()); addView(sensor, gap())
                 }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(8) })
             } else {
                 addView(themes, LinearLayout.LayoutParams(-1, -2))
-                for (v in listOf(calibration, sensor, vehicle, color, pip)) addView(v, gap())
+                for (v in listOf(calibration, limits, maxima, sensor, vehicle, color, pip)) addView(v, gap())
             }
         }
         val header = LinearLayout(ctx).apply {
@@ -96,6 +116,34 @@ class SettingsScreen(private val a: MainActivity) {
             addView(body, LinearLayout.LayoutParams(if (!wide && a.resources.configuration.screenWidthDp > 700) dp(640) else -1, -2))
         }
         return ScrollView(ctx).apply { background = ui.backgroundDrawable(ctx); addView(col) }
+    }
+
+    // ---------- límites y máximos ----------
+    private val windows = listOf(0L, 250L, 500L, 1000L, 2000L)
+    private fun windowLabel(ms: Long) = if (ms == 0L) "sin filtro" else String.format("%.2g s", ms / 1000f).replace('.', ',')
+
+    /** Fila «− valor +» con botones grandes; el valor se actualiza sin reconstruir la pantalla. */
+    private fun stepper(title: String, value: () -> String, change: (Int) -> Unit) = LinearLayout(ctx).apply {
+        orientation = LinearLayout.VERTICAL
+        addView(ui.note(ctx, title))
+        val v = ui.label(ctx, value(), 22f, ui.text).apply { gravity = Gravity.CENTER; setPadding(0, 0, 0, 0) }
+        addView(LinearLayout(ctx).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(ui.button(ctx, "−", false, accent) { change(-1); v.text = value() }.apply { textSize = 24f }, LinearLayout.LayoutParams(dp(72), dp(56)))
+            addView(v, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(ui.button(ctx, "+", false, accent) { change(1); v.text = value() }.apply { textSize = 24f }, LinearLayout.LayoutParams(dp(72), dp(56)))
+        })
+    }
+
+    private fun useMaximaAsLimits() {
+        val m = Engine.maxima.max
+        val p = maxOf(m[0], m[1]).roundToInt(); val r = maxOf(m[2], m[3]).roundToInt()
+        if (p < 5 && r < 5) { Toast.makeText(ctx, "Aún no hay máximos registrados (mínimo 5°)", Toast.LENGTH_LONG).show(); return }
+        Dialogs.confirm(ctx, "Usar máximos como límites", "Límite de cabeceo: ${if (p >= 5) "$p°" else "sin cambios"}\nLímite de alabeo: ${if (r >= 5) "$r°" else "sin cambios"}", "Usar") {
+            if (p >= 5) Config.limitPitch = p.coerceAtMost(60).toFloat()
+            if (r >= 5) Config.limitRoll = r.coerceAtMost(60).toFloat()
+            a.rebuildSettings()
+        }
     }
 
     // ---------- selector de tema: miniatura de la pantalla real de cada tema ----------

@@ -22,6 +22,21 @@ object Config {
     var offRoll: Float get() = prefs.getFloat("offRoll", 0f); set(v) = prefs.edit().putFloat("offRoll", v).apply()
     var offPitch: Float get() = prefs.getFloat("offPitch", 0f); set(v) = prefs.edit().putFloat("offPitch", v).apply()
 
+    // ---------- límites del vehículo y avisos ----------
+    var limitPitch: Float get() = prefs.getFloat("limPitch", 30f); set(v) = prefs.edit().putFloat("limPitch", v).apply()
+    var limitRoll: Float get() = prefs.getFloat("limRoll", 30f); set(v) = prefs.edit().putFloat("limRoll", v).apply()
+    /** Fracción del límite a partir de la cual se avisa en ámbar (0,8 = 80 %). */
+    var cautionPct: Float get() = prefs.getFloat("caution", 0.8f); set(v) = prefs.edit().putFloat("caution", v).apply()
+    var vibrate: Boolean get() = prefs.getBoolean("vibrate", true); set(v) = prefs.edit().putBoolean("vibrate", v).apply()
+    var beep: Boolean get() = prefs.getBoolean("beep", false); set(v) = prefs.edit().putBoolean("beep", v).apply()
+
+    // ---------- máximos registrados ----------
+    /** Tiempo que debe mantenerse un ángulo para contar como máximo (filtro de baches). */
+    var maxWindowMs: Long get() = prefs.getLong("maxWindow", 500L); set(v) = prefs.edit().putLong("maxWindow", v).apply()
+    var maxima: FloatArray
+        get() = FloatArray(4) { prefs.getFloat("max$it", 0f) }
+        set(v) { val e = prefs.edit(); for (i in 0..3) e.putFloat("max$i", v[i]); e.apply() }
+
     // ---------- mini ventana ----------
     var autoPip: Boolean get() = prefs.getBoolean("autoPip", true); set(v) = prefs.edit().putBoolean("autoPip", v).apply()
 

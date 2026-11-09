@@ -13,6 +13,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.example.inclinometro.Alerts
 import com.example.inclinometro.Chrome
 import com.example.inclinometro.Dash
 import com.example.inclinometro.IconButtonView
@@ -65,11 +66,13 @@ class TopoDash(ctx: Context, private val actions: DashActions) : LinearLayout(ct
     private val pitchView = GaugeView(ctx, "Cabeceo", false)
     private val rollView = GaugeView(ctx, "Alabeo", true)
     private val compassView = CompassView(ctx)
+    init { pitchView.caution = TopoTheme.caution; rollView.caution = TopoTheme.caution }
     private val gauges = LinearLayout(ctx).apply { addView(pitchView); addView(compassView); addView(rollView) }
     private val buttonRow = LinearLayout(ctx)
     private val topBar = LinearLayout(ctx)
     private val gear = IconButtonView(ctx, { c, x, y, r, p -> Chrome.drawGear(c, x, y, r, accent, p) }, "Ajustes") { actions.onSettings() }
     override val view: View get() = this
+    private var lastBg = 0
     override var accent: Int = TopoTheme.defaultAccent
         set(v) { field = v; pitchView.accent = v; rollView.accent = v; compassView.accent = v; gear.invalidate(); buildButtons() }
 
@@ -84,14 +87,14 @@ class TopoDash(ctx: Context, private val actions: DashActions) : LinearLayout(ct
         gauges.addOnLayoutChangeListener { _, l, t, r, bt, _, _, _, _ ->           // en pantalla dividida elige fila o columna
             val w = (r - l).toFloat(); val h = (bt - t).toFloat()
             if (w > 0 && h > 0) {
-                val horizontal = minOf(w / 3f / 190f, h / 200f) >= minOf(w / 190f, h / 3f / 200f)
+                val horizontal = minOf(w / 3f / 190f, h / 214f) >= minOf(w / 190f, h / 3f / 214f)
                 if ((gauges.orientation == HORIZONTAL) != horizontal) gauges.post { applyLayout(horizontal) }
             }
         }
     }
     override fun onMeasure(wSpec: Int, hSpec: Int) {                               // para las miniaturas, que no pasan por el post()
         val w = MeasureSpec.getSize(wSpec).toFloat(); val h = MeasureSpec.getSize(hSpec).toFloat()
-        if (w > 0 && h > 0) { val horizontal = minOf(w / 3f / 190f, h / 200f) >= minOf(w / 190f, h / 3f / 200f); if ((gauges.orientation == HORIZONTAL) != horizontal) applyLayout(horizontal) }
+        if (w > 0 && h > 0) { val horizontal = minOf(w / 3f / 190f, h / 214f) >= minOf(w / 190f, h / 3f / 214f); if ((gauges.orientation == HORIZONTAL) != horizontal) applyLayout(horizontal) }
         super.onMeasure(wSpec, hSpec)
     }
 
@@ -107,6 +110,10 @@ class TopoDash(ctx: Context, private val actions: DashActions) : LinearLayout(ct
     override fun setVehicle(side: Bitmap, rear: Bitmap, top: Bitmap) { pitchView.vehicle = side; rollView.vehicle = rear; compassView.vehicle = top }
     override fun update(s: DashState) {
         pitchView.angle = s.pitch; rollView.angle = s.roll
+        pitchView.level = s.pitchLevel; rollView.level = s.rollLevel
+        pitchView.maxLo = s.max[1]; pitchView.maxHi = s.max[0]; rollView.maxLo = s.max[2]; rollView.maxHi = s.max[3]
+        val bg = if (s.level == Alerts.DANGER) TopoTheme.danger else TopoTheme.ui.background                  // zona de peligro: fondo rojo
+        if (bg != lastBg) { lastBg = bg; setBackgroundColor(bg) }
         compassView.update(s.heading, s.kmh, s.gps && s.kmh >= 4f, s.altitude)
     }
     override fun setPip(pip: Boolean) { topBar.visibility = if (pip) View.GONE else View.VISIBLE }

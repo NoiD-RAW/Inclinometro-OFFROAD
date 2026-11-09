@@ -30,8 +30,8 @@ class CompassView(ctx: Context) : View(ctx) {
     private fun minorColor(): Int { val h = FloatArray(3); Color.colorToHSV(accent, h); h[2] *= 0.58f; return Color.HSVToColor(h) }
 
     override fun onDraw(c: Canvas) {
-        val sc = min(width / 190f, height / 200f)
-        c.save(); c.translate((width - 190 * sc) / 2, (height - 200 * sc) / 2); c.scale(sc, sc)
+        val sc = min(width / 190f, height / 214f)                               // mismo lienzo que los relojes de inclinación
+        c.save(); c.translate((width - 190 * sc) / 2, (height - 214 * sc) / 2); c.scale(sc, sc)
         val live = hasHeading && moving
         val h = heading.roundToInt().mod(360)
         val label = if (hasHeading) "%03d° %s".format(h, cards[((heading + 22.5f) / 45f).toInt().mod(8)]) else "---°"

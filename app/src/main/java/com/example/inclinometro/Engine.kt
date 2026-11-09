@@ -14,6 +14,7 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.Display
 import android.view.Surface
 import android.widget.Toast
@@ -43,6 +44,9 @@ object Engine : SensorEventListener {
     var lastLoc: Location? = null; private set
     var altitude: Float? = null; private set
     private var gpsOn = false
+    /** Máximos registrados (se guardan en Config y no dependen del tema). */
+    val maxima = MaxTracker(500L)
+    private var maxLoaded = false; private var maxDirty = false; private var lastMaxSave = 0L
 
     /** Rumbo mostrado: GPS si el vehículo se mueve; parado, magnetómetro si existe; si no, el último rumbo del GPS. */
     val heading: Float? get() = if (kmh >= 4f && gpsBearing != null) gpsBearing else (magHeading ?: gpsBearing)
@@ -55,6 +59,7 @@ object Engine : SensorEventListener {
             sm = app.getSystemService(Context.SENSOR_SERVICE) as SensorManager
             lm = app.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         }
+        if (!maxLoaded) { maxima.set(Config.maxima); maxLoaded = true }
         if (owners.isEmpty()) start()
         owners += owner
     }
@@ -70,6 +75,7 @@ object Engine : SensorEventListener {
         startGps()
     }
     private fun stop() {
+        saveMaxima()
         sm.unregisterListener(this)
         try { lm.removeUpdates(gps) } catch (_: SecurityException) {}
         gpsOn = false
@@ -88,6 +94,18 @@ object Engine : SensorEventListener {
     fun resetCal() { Config.offRoll = 0f; Config.offPitch = 0f; recompute() }
     private fun wrap(a: Float): Float { var x = a % 360f; if (x > 180f) x -= 360f; if (x <= -180f) x += 360f; return x }
     private fun recompute() { roll = wrap(rawRoll - Config.offRoll); pitch = wrap(rawPitch - Config.offPitch); dispatch() }
+
+    // ---------- máximos ----------
+    fun resetMaxima() { maxima.reset(); saveMaxima(); dispatch() }
+    private fun saveMaxima() { if (maxLoaded) { Config.maxima = maxima.max.copyOf(); maxDirty = false; lastMaxSave = SystemClock.elapsedRealtime() } }
+    /** Con cada lectura: máximos (filtrados) y nivel de aviso. Los máximos se guardan como mucho cada 2 s. */
+    private fun track() {
+        val now = SystemClock.elapsedRealtime()
+        maxima.windowMs = Config.maxWindowMs
+        if (maxima.feed(now, pitch, roll)) maxDirty = true
+        if (maxDirty && now - lastMaxSave > 2000) saveMaxima()
+        Alerts.update(app, pitch, roll)
+    }
     private fun dispatch() { for (l in listeners.toList()) l() }
 
     private fun displayRotation(): Int {
@@ -116,7 +134,8 @@ object Engine : SensorEventListener {
         val r: Double; val p: Double
         if (Config.flat) { r = atan2(sx, sz).toDouble(); p = atan2(sy, sz).toDouble() } else { r = atan2(sx, sy).toDouble(); p = atan2(-sz, sy).toDouble() }
         rawRoll = Math.toDegrees(r).toFloat(); rawPitch = Math.toDegrees(p).toFloat() * (if (Config.invertPitch) -1f else 1f)
-        recompute()
+        roll = wrap(rawRoll - Config.offRoll); pitch = wrap(rawPitch - Config.offPitch)
+        track(); dispatch()
     }
     override fun onAccuracyChanged(s: Sensor?, a: Int) {}
 

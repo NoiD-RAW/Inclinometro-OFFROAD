@@ -49,14 +49,24 @@ class DashState {
     var heading: Float? = null; var altitude: Float? = null
     var kmh = 0f
     var gps = false                     // hay posición GPS reciente (velocidad válida)
+    /** Nivel de aviso de cada eje: [Alerts.OK], [Alerts.CAUTION] o [Alerts.DANGER]. */
+    var pitchLevel = Alerts.OK; var rollLevel = Alerts.OK
+    val level get() = maxOf(pitchLevel, rollLevel)
+    /** Máximos registrados en grados positivos: morro arriba, morro abajo, alabeo izquierda, alabeo derecha. */
+    val max = FloatArray(4)
 
     fun fromEngine(): DashState {
         roll = Engine.roll; pitch = Engine.pitch; heading = Engine.heading; altitude = Engine.altitude
-        kmh = Engine.kmh; gps = Engine.gpsFresh; return this
+        kmh = Engine.kmh; gps = Engine.gpsFresh
+        pitchLevel = Alerts.pitchLevel; rollLevel = Alerts.rollLevel
+        Engine.maxima.max.copyInto(max); return this
     }
     companion object {
         /** Valores de ejemplo para las miniaturas del selector de tema. */
-        fun demo() = DashState().apply { roll = 12f; pitch = -8f; heading = 45f; altitude = 852f; kmh = 23f; gps = true }
+        fun demo() = DashState().apply {
+            roll = 12f; pitch = -8f; heading = 45f; altitude = 852f; kmh = 23f; gps = true
+            floatArrayOf(14f, 9f, 18f, 11f).copyInto(max)
+        }
     }
 }
 

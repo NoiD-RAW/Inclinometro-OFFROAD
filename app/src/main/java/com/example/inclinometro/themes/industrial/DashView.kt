@@ -1,5 +1,6 @@
 package com.example.inclinometro.themes.industrial
 
+import com.example.inclinometro.Alerts
 import com.example.inclinometro.Chrome
 import com.example.inclinometro.Dash
 import com.example.inclinometro.DashActions
@@ -20,6 +21,8 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
     private var roll = 0f; private var pitch = 0f
     private var heading: Float? = null; private var altitude: Float? = null
     private var kmh = 0f; private var gps = false
+    private var pitchLevel = Alerts.OK; private var rollLevel = Alerts.OK
+    private val maxv = FloatArray(4)
     private var side: Bitmap? = null; private var rear: Bitmap? = null
     /** Color principal (por defecto naranja). Solo cambia las partes que eran naranjas. */
     override var accent: Int = Color.rgb(255, 122, 26)
@@ -27,7 +30,8 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
     override val view: View get() = this
 
     override fun update(s: DashState) {
-        roll = s.roll.coerceIn(-40f, 40f); pitch = s.pitch.coerceIn(-40f, 40f); heading = s.heading; altitude = s.altitude; kmh = s.kmh; gps = s.gps; invalidate()
+        roll = s.roll.coerceIn(-40f, 40f); pitch = s.pitch.coerceIn(-40f, 40f); heading = s.heading; altitude = s.altitude; kmh = s.kmh; gps = s.gps
+        pitchLevel = s.pitchLevel; rollLevel = s.rollLevel; s.max.copyInto(maxv); invalidate()
     }
     override fun setVehicle(side: Bitmap, rear: Bitmap, top: Bitmap) { this.side = side; this.rear = rear; invalidate() }
 
@@ -100,6 +104,7 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
         val d = RectF(r.left + t, r.top + t, r.right - t, r.bottom - t)
         p.style = Paint.Style.FILL; p.shader = LinearGradient(0f, d.top, 0f, d.bottom, Color.rgb(27, 27, 30), Color.rgb(14, 14, 16), clamp); c.drawRect(d, p); p.shader = null
         tileFill(c, d, 0f, 60)
+        if (danger()) { p.style = Paint.Style.FILL; p.color = Color.argb(120, Color.red(IndustrialTheme.danger), Color.green(IndustrialTheme.danger), Color.blue(IndustrialTheme.danger)); c.drawRect(d, p) }
         c.drawBitmap(aEdges[4], null, RectF(r.left + s, r.top, r.right - s, r.top + t), bp)
         c.drawBitmap(aEdges[5], null, RectF(r.left + s, r.bottom - t, r.right - s, r.bottom), bp)
         c.drawBitmap(aEdges[6], null, RectF(r.left, r.top + s, r.left + t, r.bottom - s), bp)
@@ -123,6 +128,7 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
         val w = width.toFloat(); val h = height.toFloat(); val d = resources.displayMetrics.density
         ui = (min(w, h * 0.5625f) / 1440f).coerceAtLeast(0.2f)
         tileFill(c, RectF(0f, 0f, w, h), 0f, 255)
+        if (danger()) { p.style = Paint.Style.FILL; p.shader = null; p.color = IndustrialTheme.danger; c.drawRect(0f, 0f, w, h, p) }     // zona de peligro: fondo rojo
         menuRect.setEmpty()
         val m0 = 0.015f * min(w, h)
         if (w / d < 300f || h / d < 220f) {                         // minivista: solo los dos relojes
@@ -146,9 +152,12 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
         }
     }
 
+    private fun danger() = maxOf(pitchLevel, rollLevel) == Alerts.DANGER
+
     private fun header(c: Canvas, w: Float, hh: Float) {
         p.style = Paint.Style.FILL; p.shader = LinearGradient(0f, 0f, 0f, hh, Color.rgb(48, 48, 52), Color.rgb(24, 24, 26), clamp); c.drawRect(0f, 0f, w, hh, p); p.shader = null
         brush(c, RectF(0f, 0f, w, hh), 0f, 255)
+        if (danger()) { p.style = Paint.Style.FILL; p.color = Color.argb(170, Color.red(IndustrialTheme.danger), Color.green(IndustrialTheme.danger), Color.blue(IndustrialTheme.danger)); c.drawRect(0f, 0f, w, hh, p) }
         p.style = Paint.Style.STROKE; p.strokeWidth = 3f; p.color = Color.rgb(6, 6, 8); c.drawLine(0f, hh, w, hh, p)
         p.strokeWidth = 1.5f; p.color = Color.argb(120, 130, 130, 136); c.drawLine(0f, hh + 2f, w, hh + 2f, p)
         img(c, aScrew, 0.04f * w, 0.2f * hh, 0.2f * hh / 48f)
@@ -171,7 +180,25 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
         metalPanel(c, r)
         val pw = r.width(); val ph = r.height(); val cx = r.centerX(); val cy = r.top + ph * 0.93f
         val R = min(pw * 0.378f, ph * (if (mini) 0.754f else 0.68f)); val k = 2.0f; val sweep = v * k * (if (isRear) -1f else 1f)    // el indicador del alabeo gira en el mismo sentido que el vehículo      // sin rótulo, el dial puede ser algo mayor
-        if (!mini) metalText(c, title, cx, r.top + 0.105f * ph, 0.08f * ph, silverTop, silverBot, Paint.Align.CENTER)   // rótulo centrado
+        val lvl = if (isRear) rollLevel else pitchLevel
+        val warn = when (lvl) { Alerts.DANGER -> Color.rgb(255, 72, 60); Alerts.CAUTION -> IndustrialTheme.caution; else -> 0 }
+        if (lvl != Alerts.OK) {                                                       // aviso: marco de color en el reloj afectado
+            val bw = max(4f, 0.012f * min(pw, ph))
+            p.style = Paint.Style.STROKE; p.shader = null; p.color = warn; p.strokeWidth = bw
+            c.drawRoundRect(RectF(r.left + bw / 2, r.top + bw / 2, r.right - bw / 2, r.bottom - bw / 2), 14f * ui + bw, 14f * ui + bw, p)
+        }
+        if (!mini) {
+            val t = when (lvl) { Alerts.DANGER -> "$title · PELIGRO"; Alerts.CAUTION -> "$title · PRECAUCIÓN"; else -> title }
+            val ts = fit(t, 0.08f * ph, 0.56f * pw)
+            if (lvl == Alerts.OK) metalText(c, t, cx, r.top + 0.105f * ph, ts, silverTop, silverBot, Paint.Align.CENTER)   // rótulo centrado
+            else text(c, t, cx, r.top + 0.105f * ph, ts, if (lvl == Alerts.DANGER) Color.WHITE else warn)
+            // máximos registrados, discretos en las esquinas superiores (cada uno en el lado de la escala que le corresponde)
+            val lo = if (isRear) maxv[2] else maxv[1]; val hi = if (isRear) maxv[3] else maxv[0]
+            val sLo = if (isRear) "${lo.roundToInt()}°" else "-${lo.roundToInt()}°"; val sHi = if (isRear) "${hi.roundToInt()}°" else "+${hi.roundToInt()}°"
+            val mx = 0.06f * pw; val ls = 0.045f * ph; val vs = 0.07f * ph; val my = r.top + 0.2f * ph
+            text(c, "MÁX", r.left + mx, my, ls, Color.rgb(150, 150, 156), Paint.Align.LEFT); text(c, "MÁX", r.right - mx, my, ls, Color.rgb(150, 150, 156), Paint.Align.RIGHT)
+            metalText(c, sLo, r.left + mx, my + vs * 1.1f, vs, silverTop, silverBot, Paint.Align.LEFT); metalText(c, sHi, r.right - mx, my + vs * 1.1f, vs, silverTop, silverBot, Paint.Align.RIGHT)
+        }
         val oval = RectF(cx - R, cy - R, cx + R, cy + R)
         p.style = Paint.Style.STROKE; p.strokeCap = Paint.Cap.BUTT; p.color = Color.rgb(96, 96, 102); p.strokeWidth = max(2f, 0.010f * R); c.drawArc(oval, 270f - 80f, 160f, false, p)
         if (abs(v) > 0.5f) {
@@ -210,7 +237,8 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
         val s = if (isRear) "${abs(vi)}°" else if (vi == 0) "0°" else if (vi > 0) "+$vi°" else "$vi°"
         val pwid = max(0.16f * pw, 2.4f * tsz)
         img(c, aPill, cx, pcy, pwid / 368f)                      // pastilla hexagonal del original
-        metalText(c, s, cx, pcy + tsz * 0.36f, tsz, aLight, accent, Paint.Align.CENTER)
+        if (lvl == Alerts.OK) metalText(c, s, cx, pcy + tsz * 0.36f, tsz, aLight, accent, Paint.Align.CENTER)
+        else text(c, s, cx, pcy + tsz * 0.36f, tsz, warn)                         // la cifra toma el color del aviso
     }
 
     private fun compassCard(c: Canvas, r: RectF) {

@@ -3,9 +3,10 @@ package com.example.inclinometro.themes.topo
 import android.content.Context
 import android.graphics.*
 import android.view.View
+import com.example.inclinometro.Alerts
 import kotlin.math.*
 
-/** Reloj de inclinación (cabeceo o alabeo). Se dibuja en un lienzo de 190x200 unidades que se escala a la vista. */
+/** Reloj de inclinación (cabeceo o alabeo). Se dibuja en un lienzo de 190x214 unidades que se escala a la vista. */
 class GaugeView(ctx: Context, private val title: String, private val rear: Boolean) : View(ctx) {
     var angle = 0f
         set(v) { field = v.coerceIn(-40f, 40f); invalidate() }                // la escala llega a ±40°
@@ -13,6 +14,11 @@ class GaugeView(ctx: Context, private val title: String, private val rear: Boole
         set(v) { field = v; invalidate() }
     var vehicle: Bitmap? = null
         set(v) { field = v; invalidate() }
+    /** Nivel de aviso (Alerts.OK / CAUTION / DANGER) y color ámbar del tema. */
+    var level = Alerts.OK
+    var caution = Color.rgb(255, 170, 40)
+    /** Máximos registrados: lado negativo y positivo de la escala (grados positivos). */
+    var maxLo = 0f; var maxHi = 0f
 
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val mono = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
@@ -26,14 +32,14 @@ class GaugeView(ctx: Context, private val title: String, private val rear: Boole
     private fun minorColor(): Int { val h = FloatArray(3); Color.colorToHSV(accent, h); h[2] *= 0.58f; return Color.HSVToColor(h) }
 
     override fun onDraw(c: Canvas) {
-        val sc = min(width / 190f, height / 200f)
-        c.save(); c.translate((width - 190 * sc) / 2, (height - 200 * sc) / 2); c.scale(sc, sc)
-        val a = abs(angle)
-        val col = when { a < 20 -> Color.rgb(80, 200, 120); a < 30 -> Color.rgb(255, 170, 40); else -> Color.rgb(235, 70, 60) }
+        val sc = min(width / 190f, height / 214f)
+        c.save(); c.translate((width - 190 * sc) / 2, (height - 214 * sc) / 2); c.scale(sc, sc)
+        val col = when (level) { Alerts.DANGER -> Color.WHITE; Alerts.CAUTION -> caution; else -> Color.rgb(80, 200, 120) }   // en peligro el fondo es rojo: cifra en blanco
         val n = angle.roundToInt()
         text(c, "${if (rear) abs(n) else n}°", 95f, 40f, 24f, col, mono)      // el alabeo se muestra siempre en positivo
         p.style = Paint.Style.FILL; p.color = Color.BLACK; c.drawCircle(95f, 112f, 56f, p)
         p.style = Paint.Style.STROKE; p.color = Color.rgb(68, 68, 68); p.strokeWidth = 1f; c.drawCircle(95f, 112f, 56f, p)
+        if (level != Alerts.OK) { p.color = if (level == Alerts.DANGER) Color.WHITE else caution; p.strokeWidth = 4f; c.drawCircle(95f, 112f, 57f, p) }   // aro de aviso
 
         c.save(); c.clipPath(Path().apply { addCircle(95f, 112f, 56f, Path.Direction.CW) }); c.translate(95f, 112f)
         Topo.draw(c, p, accent, minorColor()); c.restore()                    // curvas de nivel fijas, en el color elegido
@@ -61,7 +67,10 @@ class GaugeView(ctx: Context, private val title: String, private val rear: Boole
             c.save(); c.translate(95f, 112f); c.rotate(tilt); c.scale(f, f); p.isFilterBitmap = true; p.style = Paint.Style.FILL
             c.drawBitmap(v, -v.width / 2f, -v.height / 2f, p); c.restore()
         }
-        text(c, title, 95f, 192f, 13f, Color.rgb(207, 216, 220))
+        val t = when (level) { Alerts.DANGER -> "$title · PELIGRO"; Alerts.CAUTION -> "$title · PRECAUCIÓN"; else -> title }
+        text(c, t, 95f, 192f, 13f, if (level == Alerts.OK) Color.rgb(207, 216, 220) else col, if (level == Alerts.OK) Typeface.DEFAULT else Typeface.DEFAULT_BOLD)
+        val mx = if (rear) "máx  izq ${maxLo.roundToInt()}° · der ${maxHi.roundToInt()}°" else "máx  -${maxLo.roundToInt()}° · +${maxHi.roundToInt()}°"
+        text(c, mx, 95f, 209f, 11f, if (level == Alerts.DANGER) Color.rgb(240, 220, 220) else Color.rgb(140, 150, 155))   // máximos, discretos
         c.restore()
     }
 
