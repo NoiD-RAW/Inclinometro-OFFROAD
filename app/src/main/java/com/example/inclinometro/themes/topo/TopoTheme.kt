@@ -13,7 +13,9 @@ import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.example.inclinometro.Chrome
 import com.example.inclinometro.Dash
+import com.example.inclinometro.IconButtonView
 import com.example.inclinometro.DashActions
 import com.example.inclinometro.DashState
 import com.example.inclinometro.Theme
@@ -58,23 +60,26 @@ object TopoTheme : Theme {
     }
 }
 
-/** Pantalla principal: cabeceo, brújula y alabeo en fila o en columna (según el espacio) y la fila de botones debajo. */
+/** Pantalla principal: barra superior con la rueda de Ajustes, cabeceo, brújula y alabeo en fila o en columna (según el espacio) y la fila de botones debajo. */
 class TopoDash(ctx: Context, private val actions: DashActions) : LinearLayout(ctx), Dash {
     private val pitchView = GaugeView(ctx, "Cabeceo", false)
     private val rollView = GaugeView(ctx, "Alabeo", true)
     private val compassView = CompassView(ctx)
     private val gauges = LinearLayout(ctx).apply { addView(pitchView); addView(compassView); addView(rollView) }
     private val buttonRow = LinearLayout(ctx)
+    private val topBar = LinearLayout(ctx)
+    private val gear = IconButtonView(ctx, { c, x, y, r, p -> Chrome.drawGear(c, x, y, r, accent, p) }, "Ajustes") { actions.onSettings() }
     override val view: View get() = this
     override var accent: Int = TopoTheme.defaultAccent
-        set(v) { field = v; pitchView.accent = v; rollView.accent = v; compassView.accent = v; buildButtons() }
+        set(v) { field = v; pitchView.accent = v; rollView.accent = v; compassView.accent = v; gear.invalidate(); buildButtons() }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     init {
         orientation = VERTICAL; setBackgroundColor(TopoTheme.ui.background)
         buttonRow.apply { orientation = HORIZONTAL; gravity = Gravity.CENTER }
-        addView(gauges, LayoutParams(-1, 0, 1f)); addView(buttonRow, LayoutParams(-1, -2))
+        topBar.apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL or Gravity.END; addView(gear, LayoutParams(dp(56), dp(56))) }
+        addView(topBar, LayoutParams(-1, -2)); addView(gauges, LayoutParams(-1, 0, 1f)); addView(buttonRow, LayoutParams(-1, -2))
         applyLayout(true); accent = TopoTheme.defaultAccent
         gauges.addOnLayoutChangeListener { _, l, t, r, bt, _, _, _, _ ->           // en pantalla dividida elige fila o columna
             val w = (r - l).toFloat(); val h = (bt - t).toFloat()
@@ -94,7 +99,6 @@ class TopoDash(ctx: Context, private val actions: DashActions) : LinearLayout(ct
         buttonRow.removeAllViews()
         val ui = TopoTheme.ui
         buttonRow.addView(ui.button(context, "Calibrar a 0°", true, accent) { actions.onZero() }, LayoutParams(0, dp(48), 1f).apply { setMargins(dp(8), dp(4), dp(8), dp(8)) })
-        buttonRow.addView(ui.button(context, "⚙  Ajustes", false, accent) { actions.onSettings() }, LayoutParams(0, dp(48), 1f).apply { setMargins(dp(8), dp(4), dp(8), dp(8)) })
     }
     private fun applyLayout(horizontal: Boolean) {
         gauges.orientation = if (horizontal) HORIZONTAL else VERTICAL
@@ -107,5 +111,5 @@ class TopoDash(ctx: Context, private val actions: DashActions) : LinearLayout(ct
         pitchView.angle = s.pitch; rollView.angle = s.roll
         compassView.update(s.heading, s.kmh, s.gps && s.kmh >= 4f, s.altitude)
     }
-    override fun setPip(pip: Boolean) { buttonRow.visibility = if (pip) View.GONE else View.VISIBLE }
+    override fun setPip(pip: Boolean) { val v = if (pip) View.GONE else View.VISIBLE; buttonRow.visibility = v; topBar.visibility = v }
 }

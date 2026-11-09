@@ -23,6 +23,7 @@ class MainActivity : Activity() {
 
     var appTheme: Theme = Themes.current; private set
     private lateinit var root: FrameLayout
+    private lateinit var dashBox: FrameLayout            // contenedor de la pantalla del tema, con los márgenes seguros (notch, barras)
     private lateinit var dash: Dash
     private lateinit var settings: ScrollView
     private lateinit var settingsScreen: SettingsScreen
@@ -38,10 +39,12 @@ class MainActivity : Activity() {
         appTheme = Themes.current
         settingsScreen = SettingsScreen(this)
         root = FrameLayout(this).apply { setBackgroundColor(appTheme.ui.background) }
-        dash = createDash()
+        dashBox = FrameLayout(this)
+        dash = createDash(); dashBox.addView(dash.view, FrameLayout.LayoutParams(-1, -1))
         settings = settingsScreen.build(); settings.visibility = View.GONE
-        root.addView(dash.view, 0, FrameLayout.LayoutParams(-1, -1)); root.addView(settings, FrameLayout.LayoutParams(-1, -1))
+        root.addView(dashBox, FrameLayout.LayoutParams(-1, -1)); root.addView(settings, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
+        dashBox.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> applySafeInsets() }
         refreshVehicle(); updatePipParams()
         // Sin permiso de ubicación la app funciona igual, pero sin rumbo GPS, altitud ni velocidad: se pide al abrir mientras no esté concedido.
         if (!Engine.hasLocationPermission(this) && Build.VERSION.SDK_INT >= 23) requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
@@ -60,16 +63,22 @@ class MainActivity : Activity() {
     /** Cambia de tema al momento: la calibración y el resto de datos no dependen de la pantalla, así que no se pierde nada. */
     fun applyTheme(id: String) {
         Config.theme = id; appTheme = Themes.byId(id)
-        val vis = dash.view.visibility
-        root.removeView(dash.view); dash = createDash(); dash.view.visibility = vis
-        root.addView(dash.view, 0, FrameLayout.LayoutParams(-1, -1)); root.setBackgroundColor(appTheme.ui.background)
+        dashBox.removeAllViews(); dash = createDash(); dash.setPip(isInPictureInPictureMode)
+        dashBox.addView(dash.view, FrameLayout.LayoutParams(-1, -1)); root.setBackgroundColor(appTheme.ui.background)
         dash.update(state.fromEngine()); refreshVehicle(); rebuildSettings(); updatePipParams()
     }
     fun setAccent(c: Int) { Config.setAccent(appTheme.id, c); dash.accent = c; rebuildSettings() }
 
+    /** Deja libres la barra de estado y el notch para cualquier tema (en mini ventana no hace falta). */
+    private fun applySafeInsets() {
+        val r = if (isInPictureInPictureMode) android.graphics.Rect() else Chrome.safeInsets(dashBox)
+        if (r.left != dashBox.paddingLeft || r.top != dashBox.paddingTop || r.right != dashBox.paddingRight || r.bottom != dashBox.paddingBottom)
+            dashBox.post { dashBox.setPadding(r.left, r.top, r.right, r.bottom) }
+    }
+
     // ---------- navegación ----------
-    fun showDash() { settings.visibility = View.GONE; dash.view.visibility = View.VISIBLE; updatePipParams() }
-    private fun showSettings() { dash.view.visibility = View.GONE; settings.visibility = View.VISIBLE; updatePipParams() }
+    fun showDash() { settings.visibility = View.GONE; dashBox.visibility = View.VISIBLE; updatePipParams() }
+    private fun showSettings() { dashBox.visibility = View.GONE; settings.visibility = View.VISIBLE; updatePipParams() }
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() { if (settings.visibility == View.VISIBLE) showDash() else super.onBackPressed() }
     fun rebuildSettings() {
@@ -84,7 +93,7 @@ class MainActivity : Activity() {
     private fun pipSupported() = Build.VERSION.SDK_INT >= 26 && packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
     private fun pipParams(): PictureInPictureParams {
         val b = PictureInPictureParams.Builder().setAspectRatio(appTheme.pipAspect)
-        if (Build.VERSION.SDK_INT >= 31) b.setAutoEnterEnabled(Config.autoPip && dash.view.visibility == View.VISIBLE)     // solo desde la pantalla principal
+        if (Build.VERSION.SDK_INT >= 31) b.setAutoEnterEnabled(Config.autoPip && dashBox.visibility == View.VISIBLE)     // solo desde la pantalla principal
         return b.build()
     }
     fun updatePipParams() { if (Build.VERSION.SDK_INT >= 31 && pipSupported()) try { setPictureInPictureParams(pipParams()) } catch (_: Exception) {} }
@@ -100,7 +109,7 @@ class MainActivity : Activity() {
         } catch (e: Exception) { if (!silent) Toast.makeText(this, "No se pudo abrir la mini ventana: ${e.message}", Toast.LENGTH_LONG).show() }
     }
     /** Al pulsar Inicio desde la pantalla principal, la app pasa a mini ventana en vez de cerrarse (si la opción está activada). */
-    override fun onUserLeaveHint() { super.onUserLeaveHint(); if (Config.autoPip && dash.view.visibility == View.VISIBLE) enterPip(true) }
+    override fun onUserLeaveHint() { super.onUserLeaveHint(); if (Config.autoPip && dashBox.visibility == View.VISIBLE) enterPip(true) }
     override fun onPictureInPictureModeChanged(inPip: Boolean, cfg: Configuration) { super.onPictureInPictureModeChanged(inPip, cfg); dash.setPip(inPip) }
 
     // ---------- calibración ----------

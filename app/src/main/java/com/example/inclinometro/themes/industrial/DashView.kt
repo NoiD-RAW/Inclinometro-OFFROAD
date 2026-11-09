@@ -1,5 +1,6 @@
 package com.example.inclinometro.themes.industrial
 
+import com.example.inclinometro.Chrome
 import com.example.inclinometro.Dash
 import com.example.inclinometro.DashActions
 import com.example.inclinometro.DashState
@@ -167,9 +168,9 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
             lineTo(lcx, lcy + lr * 0.9f); lineTo(lcx - lr * 0.2f, lcy + lr * 0.2f); lineTo(lcx - lr * 0.9f, lcy); lineTo(lcx - lr * 0.2f, lcy - lr * 0.2f); close() }, p); p.shader = null
         x += 2 * lr + hh * 0.2f; val by = lcy + ts * 0.34f
         metalText(c, t1, x, by, ts, silverTop, silverBot); metalText(c, t2, x + w1, by, ts, aLight, accent)
-        val bx = w - hh * 0.9f; p.style = Paint.Style.FILL; p.color = accent
-        for (i in -1..1) c.drawRoundRect(RectF(bx, lcy + i * hh * 0.17f - hh * 0.035f, bx + hh * 0.55f, lcy + i * hh * 0.17f + hh * 0.035f), 4f, 4f, p)
-        menuRect.set(w - hh * 1.6f, 0f, w, hh)
+        val tz = max(hh, Chrome.minTouch(context))                                   // rueda dentada de Ajustes: área táctil de al menos 48 dp
+        Chrome.drawGear(c, w - hh * 0.62f, lcy, hh * 0.32f, accent, p)
+        menuRect.set(w - max(hh * 1.3f, tz), 0f, w, tz)
     }
 
     private fun gauge(c: Canvas, r: RectF, title: String, sub: String, v: Float, isRear: Boolean, mini: Boolean) {

@@ -30,6 +30,9 @@ Los dos que trae la app sirven de ejemplo:
    - `accent`: color principal elegido por el usuario.
    - `setPip(pip)`: oculta los botones en la mini ventana.
    - Los botones de la pantalla llaman a las funciones de `actions`.
+   - Para la rueda dentada de Ajustes usa los ayudantes comunes de `Chrome.kt` (`Chrome.drawGear` si dibujas en `Canvas`,
+     `IconButtonView` si usas vistas). Así se comporta igual en todos los temas: esquina superior derecha y área táctil mínima de 48 dp.
+     Los márgenes seguros (notch, barra de estado) ya los aplica la app alrededor de tu pantalla.
 
 3. **Regístralo** añadiéndolo a la lista `Themes.all` en `Theme.kt`. No hay que tocar nada más: el selector de Ajustes genera
    la miniatura automáticamente dibujando tu pantalla principal con datos de ejemplo.
