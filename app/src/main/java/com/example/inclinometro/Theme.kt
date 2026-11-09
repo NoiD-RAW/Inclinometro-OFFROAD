@@ -41,7 +41,7 @@ interface Dash {
 }
 
 /** Lo que pasa al tocar los controles de la pantalla principal. */
-class DashActions(val onSettings: () -> Unit = {}, val onZero: () -> Unit = {})
+class DashActions(val onSettings: () -> Unit = {})
 
 /** Datos que muestra la pantalla principal, iguales para todos los temas. */
 class DashState {

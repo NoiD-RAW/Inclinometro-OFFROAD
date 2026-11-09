@@ -40,7 +40,6 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
         f ?: cond
     }
     private val cards = arrayOf("N", "NE", "E", "SE", "S", "SO", "O", "NO")
-    private val zeroC = PointF(); private var zeroR = 0f
     private val menuRect = RectF()
     private val silverTop = Color.rgb(248, 248, 252); private val silverBot = Color.rgb(158, 158, 166)
     private val clamp = Shader.TileMode.CLAMP
@@ -61,7 +60,6 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
     private val aBadge by lazy { bmp(R.drawable.alt_badge) }
     private val bp = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private var ui = 1f                    // escala respecto al diseño original (1440 px de ancho)
-    private var zeroDown = false
 
     /** Gira el tono de los gráficos naranjas (el gris metálico no se altera) hacia el color principal elegido. */
     private fun accentFilter(darker: Boolean): ColorMatrixColorFilter {
@@ -125,7 +123,7 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
         val w = width.toFloat(); val h = height.toFloat(); val d = resources.displayMetrics.density
         ui = (min(w, h * 0.5625f) / 1440f).coerceAtLeast(0.2f)
         tileFill(c, RectF(0f, 0f, w, h), 0f, 255)
-        zeroR = 0f; menuRect.setEmpty()
+        menuRect.setEmpty()
         val m0 = 0.015f * min(w, h)
         if (w / d < 300f || h / d < 220f) {                         // minivista: solo los dos relojes
             if (w >= h * 1.2f) { val gw = (w - 3 * m0) / 2; gauge(c, RectF(m0, m0, m0 + gw, h - m0), "ALABEO", "", roll, true, true); gauge(c, RectF(2 * m0 + gw, m0, w - m0, h - m0), "CABECEO", "", pitch, false, true) }
@@ -138,8 +136,6 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
             gauge(c, RectF(m, 0.0695f * h, w - m, 0.3398f * h), "ALABEO", "", roll, true, false)
             gauge(c, RectF(m, 0.3535f * h, w - m, 0.623f * h), "CABECEO", "", pitch, false, false)
             compassCard(c, RectF(m, 0.636f * h, 0.492f * w, 0.779f * h)); altCard(c, RectF(0.515f * w, 0.636f * h, w - m, 0.779f * h))
-            val y4 = 0.793f * h; val zh = 0.973f * h - y4
-            val zr = min(zh / 2, 0.15f * w); if (zr > 20f) zero(c, w / 2, y4 + zh / 2, zr)
         } else {                                                     // horizontal
             val m = m0; val hh = 0.10f * h; val gh = 0.56f * h; val gw = (w - 3 * m) / 2
             header(c, w, hh)
@@ -147,8 +143,6 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
             gauge(c, RectF(2 * m + gw, hh + m, w - m, hh + m + gh), "CABECEO", "", pitch, false, false)
             val y3 = hh + 2 * m + gh; val ch = h - y3 - m; val cw = 0.34f * w
             compassCard(c, RectF(m, y3, m + cw, y3 + ch)); altCard(c, RectF(2 * m + cw, y3, 2 * m + 2 * cw, y3 + ch))
-            val zx0 = 3 * m + 2 * cw; val zr = min(ch / 2, (w - m - zx0) / 2)
-            if (zr > 20f) zero(c, (zx0 + w - m) / 2, y3 + ch / 2, zr)
         }
     }
 
@@ -253,23 +247,11 @@ class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash
         }
     }
 
-    private fun zero(c: Canvas, cx: Float, cy: Float, r: Float) {
-        zeroC.set(cx, cy); zeroR = r
-        img(c, aZero, cx, cy, 2f * r / 428f, accentFilter(zeroDown))                 // botón del original; el naranja toma el color elegido
-        val ink = Color.rgb(32, 22, 14); val my = cy - r * 0.14f; val ar = r * 0.32f
-        p.style = Paint.Style.STROKE; p.shader = null; p.color = ink; p.strokeWidth = max(2f, 0.05f * r); c.drawCircle(cx, my, ar, p)
-        c.drawLine(cx, my - ar * 1.35f, cx, my + ar * 1.35f, p); c.drawLine(cx - ar * 1.35f, my, cx + ar * 1.35f, my, p)
-        p.style = Paint.Style.FILL; c.drawCircle(cx, my, ar * 0.22f, p)
-        text(c, "ZERO", cx, cy + 0.66f * r, 0.27f * r, ink, Paint.Align.CENTER, 0f, titleFont)
-    }
-
     override fun onTouchEvent(e: MotionEvent): Boolean {
-        val inZero = zeroR > 0 && hypot(e.x - zeroC.x, e.y - zeroC.y) <= zeroR
         val inMenu = !menuRect.isEmpty && menuRect.contains(e.x, e.y)
         when (e.action) {
-            MotionEvent.ACTION_DOWN -> { if (inZero) { zeroDown = true; invalidate() }; return inZero || inMenu }
-            MotionEvent.ACTION_UP -> { zeroDown = false; invalidate(); if (inZero) actions.onZero() else if (inMenu) actions.onSettings() }
-            MotionEvent.ACTION_CANCEL -> { zeroDown = false; invalidate() }
+            MotionEvent.ACTION_DOWN -> return inMenu
+            MotionEvent.ACTION_UP -> if (inMenu) actions.onSettings()
         }
         return true
     }

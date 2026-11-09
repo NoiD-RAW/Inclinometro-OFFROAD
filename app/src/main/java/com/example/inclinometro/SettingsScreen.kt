@@ -42,7 +42,22 @@ class SettingsScreen(private val a: MainActivity) {
             ui.note(ctx, "Sin selector de archivos: copia lateral.png, trasera.png y superior.png a la carpeta de la app."),
             button("Restablecer vehículo original", false) { a.resetVehicle() }))
         val color = ui.section(ctx, "Color principal", accent, listOf(colorSwatches(), hexRow()))
+        val calibration = ui.section(ctx, "Calibración", accent, listOf(
+            ui.note(ctx, "Pon el cero con el vehículo en una superficie plana. Se guarda al cerrar la app y es la misma para todos los temas."),
+            ui.note(ctx, if (Config.offRoll == 0f && Config.offPitch == 0f) "Sin calibrar (cero de fábrica)."
+                else String.format("Corrección guardada: alabeo %+.1f°, cabeceo %+.1f°.", Config.offRoll, Config.offPitch)),
+            button("Calibrar a 0°", true) {
+                Dialogs.confirm(ctx, "Calibrar a 0°", "Coloca el vehículo en una superficie plana y pulsa Confirmar.") {
+                    Engine.calibrate(); Toast.makeText(ctx, "Calibrado a 0°", Toast.LENGTH_SHORT).show(); a.rebuildSettings()
+                }
+            },
+            button("Restablecer calibración", false) {
+                Dialogs.confirm(ctx, "Restablecer calibración", "Se borrará la calibración guardada y se volverá al cero de fábrica.", "Restablecer") {
+                    Engine.resetCal(); Toast.makeText(ctx, "Calibración restablecida", Toast.LENGTH_SHORT).show(); a.rebuildSettings()
+                }
+            }))
         val sensor = ui.section(ctx, "Montaje del sensor", accent, listOf(
+            ui.note(ctx, "Cambiar el montaje o los ejes restablece la calibración."),
             button(if (Config.flat) "Montaje: plano" else "Montaje: vertical", false) { Config.flat = !Config.flat; Engine.resetCal(); a.rebuildSettings() },
             button("Ejes: ${Config.rot * 90}°  (toca para girar 90°)", false) { Config.rot = (Config.rot + 1) % 4; Engine.resetCal(); a.rebuildSettings() },
             button(if (Config.invertPitch) "Cabeceo: invertido" else "Cabeceo: normal", false) { Config.invertPitch = !Config.invertPitch; Engine.resetCal(); a.rebuildSettings() }))
@@ -63,11 +78,11 @@ class SettingsScreen(private val a: MainActivity) {
                 }, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = dp(8) })
                 addView(LinearLayout(ctx).apply {
                     orientation = LinearLayout.VERTICAL
-                    addView(color, LinearLayout.LayoutParams(-1, -2)); addView(sensor, gap()); addView(pip, gap())
+                    addView(calibration, LinearLayout.LayoutParams(-1, -2)); addView(sensor, gap()); addView(color, gap()); addView(pip, gap())
                 }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(8) })
             } else {
                 addView(themes, LinearLayout.LayoutParams(-1, -2))
-                for (v in listOf(vehicle, color, sensor, pip)) addView(v, gap())
+                for (v in listOf(calibration, sensor, vehicle, color, pip)) addView(v, gap())
             }
         }
         val header = LinearLayout(ctx).apply {

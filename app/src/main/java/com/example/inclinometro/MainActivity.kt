@@ -58,7 +58,7 @@ class MainActivity : Activity() {
     }
 
     // ---------- tema ----------
-    private fun createDash() = appTheme.createDash(this, DashActions(onSettings = { showSettings() }, onZero = { calibrate() })).also { it.accent = Themes.accent(appTheme) }
+    private fun createDash() = appTheme.createDash(this, DashActions(onSettings = { showSettings() })).also { it.accent = Themes.accent(appTheme) }
 
     /** Cambia de tema al momento: la calibración y el resto de datos no dependen de la pantalla, así que no se pierde nada. */
     fun applyTheme(id: String) {
@@ -111,9 +111,6 @@ class MainActivity : Activity() {
     /** Al pulsar Inicio desde la pantalla principal, la app pasa a mini ventana en vez de cerrarse (si la opción está activada). */
     override fun onUserLeaveHint() { super.onUserLeaveHint(); if (Config.autoPip && dashBox.visibility == View.VISIBLE) enterPip(true) }
     override fun onPictureInPictureModeChanged(inPip: Boolean, cfg: Configuration) { super.onPictureInPictureModeChanged(inPip, cfg); dash.setPip(inPip) }
-
-    // ---------- calibración ----------
-    private fun calibrate() { Engine.calibrate(); Toast.makeText(this, "Calibrado a 0°", Toast.LENGTH_SHORT).show() }
 
     // ---------- imágenes del vehículo (se guardan en el tema activo) ----------
     private fun refreshVehicle() {

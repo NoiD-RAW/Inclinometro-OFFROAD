@@ -96,9 +96,7 @@ class TopoDash(ctx: Context, private val actions: DashActions) : LinearLayout(ct
     }
 
     private fun buildButtons() {
-        buttonRow.removeAllViews()
-        val ui = TopoTheme.ui
-        buttonRow.addView(ui.button(context, "Calibrar a 0°", true, accent) { actions.onZero() }, LayoutParams(0, dp(48), 1f).apply { setMargins(dp(8), dp(4), dp(8), dp(8)) })
+        buttonRow.removeAllViews(); buttonRow.visibility = View.GONE              // la calibración se hace desde Ajustes, para no tocarla en marcha
     }
     private fun applyLayout(horizontal: Boolean) {
         gauges.orientation = if (horizontal) HORIZONTAL else VERTICAL
@@ -111,5 +109,5 @@ class TopoDash(ctx: Context, private val actions: DashActions) : LinearLayout(ct
         pitchView.angle = s.pitch; rollView.angle = s.roll
         compassView.update(s.heading, s.kmh, s.gps && s.kmh >= 4f, s.altitude)
     }
-    override fun setPip(pip: Boolean) { val v = if (pip) View.GONE else View.VISIBLE; buttonRow.visibility = v; topBar.visibility = v }
+    override fun setPip(pip: Boolean) { topBar.visibility = if (pip) View.GONE else View.VISIBLE }
 }
