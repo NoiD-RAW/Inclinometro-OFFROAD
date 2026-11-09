@@ -1,4 +1,6 @@
-package com.example.inclinometro
+package com.example.inclinometro.themes.industrial
+
+import com.example.inclinometro.R
 
 import android.content.Context
 import android.graphics.*

@@ -3,7 +3,8 @@
         <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <application
-        android:label="Inclinómetro Offroad"
+        android:name=".App"
+        android:label="Inclinómetro OFFROAD"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.Material.NoActionBar">

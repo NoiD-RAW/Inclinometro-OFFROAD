@@ -1,4 +1,9 @@
-package com.example.inclinometro
+package com.example.inclinometro.themes.industrial
+
+import com.example.inclinometro.Dash
+import com.example.inclinometro.DashActions
+import com.example.inclinometro.DashState
+import com.example.inclinometro.R
 
 import android.content.Context
 import android.graphics.*
@@ -10,18 +15,20 @@ import kotlin.math.*
 
 /** Pantalla principal con estética industrial metálica (paneles de acero cepillado, tornillos, biseles).
  *  Se reorganiza sola: vertical, horizontal o minivista (PiP / ventana pequeña). El color principal es configurable. */
-class DashView(ctx: Context) : View(ctx) {
+class DashView(ctx: Context, private val actions: DashActions) : View(ctx), Dash {
     private var roll = 0f; private var pitch = 0f
     private var heading: Float? = null; private var altitude: Float? = null
+    private var kmh = 0f; private var gps = false
     private var side: Bitmap? = null; private var rear: Bitmap? = null
-    var onZero: (() -> Unit)? = null
-    var onMenu: (() -> Unit)? = null
     /** Color principal (por defecto naranja). Solo cambia las partes que eran naranjas. */
-    var accent: Int = Color.rgb(255, 122, 26)
+    override var accent: Int = Color.rgb(255, 122, 26)
         set(v) { field = v; invalidate() }
+    override val view: View get() = this
 
-    fun update(r: Float, pi: Float, h: Float?, alt: Float?) { roll = r; pitch = pi; heading = h; altitude = alt; invalidate() }
-    fun setVehicle(s: Bitmap?, r: Bitmap?) { side = s; rear = r; invalidate() }
+    override fun update(s: DashState) {
+        roll = s.roll.coerceIn(-40f, 40f); pitch = s.pitch.coerceIn(-40f, 40f); heading = s.heading; altitude = s.altitude; kmh = s.kmh; gps = s.gps; invalidate()
+    }
+    override fun setVehicle(side: Bitmap, rear: Bitmap, top: Bitmap) { this.side = side; this.rear = rear; invalidate() }
 
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val cond = Typeface.create("sans-serif-condensed", Typeface.BOLD)
@@ -226,6 +233,8 @@ class DashView(ctx: Context) : View(ctx) {
         val s1 = if (hd == null) "---" else cards[((hd + 22.5f) / 45f).toInt().mod(8)] + " "; val s2 = if (hd == null) "" else "%03d°".format(hd.roundToInt().mod(360))
         val sz = fit(s1 + s2, 0.2f * ph, box.width() * 0.88f); val sx = box.centerX() - tw(s1 + s2, sz) / 2; val by = box.centerY() + sz * 0.36f
         metalText(c, s1, sx, by, sz, aLight, accent); metalText(c, s2, sx + tw(s1, sz), by, sz, silverTop, silverBot)
+        val sp = if (gps) "${kmh.roundToInt()} km/h" else "--- km/h"                // velocidad GPS
+        metalText(c, sp, box.centerX(), r.top + 0.86f * ph, fit(sp, 0.11f * ph, box.width()), silverTop, silverBot, Paint.Align.CENTER)
     }
 
     private fun altCard(c: Canvas, r: RectF) {
@@ -258,7 +267,7 @@ class DashView(ctx: Context) : View(ctx) {
         val inMenu = !menuRect.isEmpty && menuRect.contains(e.x, e.y)
         when (e.action) {
             MotionEvent.ACTION_DOWN -> { if (inZero) { zeroDown = true; invalidate() }; return inZero || inMenu }
-            MotionEvent.ACTION_UP -> { zeroDown = false; invalidate(); if (inZero) onZero?.invoke() else if (inMenu) onMenu?.invoke() }
+            MotionEvent.ACTION_UP -> { zeroDown = false; invalidate(); if (inZero) actions.onZero() else if (inMenu) actions.onSettings() }
             MotionEvent.ACTION_CANCEL -> { zeroDown = false; invalidate() }
         }
         return true
