@@ -1,18 +1,16 @@
-## Inclinómetro OFFROAD 2.0
+## Inclinómetro OFFROAD 2.1
 
-Las dos apps (Inclinómetro Offroad y 3 Relojes) pasan a ser **una sola app con dos temas**: Industrial y Topográfico. El tema se cambia en Ajustes → Tema, al momento y sin perder la calibración.
+Versión preparada para Google Play.
 
-### Novedades
-- **Selector de tema** con vista previa. Cada tema guarda su color y sus imágenes del vehículo.
-- Lo que antes solo tenía una de las dos apps, ahora en ambas: altitud, velocidad, rumbo por brújula del dispositivo, vista superior del vehículo y mini ventana automática.
-- **Ajustes** con el icono de rueda dentada, arriba a la derecha.
-- **Calibración en Ajustes**, con confirmación. Ya no hay botón ZERO en la pantalla principal, para no pulsarlo en marcha. Nueva opción «Restablecer calibración».
-- **Máximos** de cabeceo y alabeo en la pantalla, con filtro para que los baches no cuenten.
-- **Límites del vehículo**: aviso ámbar de precaución y fondo rojo de peligro, con vibración o pitido opcionales.
-- **Salidas**: graba la ruta con la inclinación, también con la app en segundo plano. **Histórico** con gráfico, mapa del recorrido coloreado, mapa de puntos críticos y exportación a CSV o GPX.
+### Cambios
+- **Nuevo identificador**: `dev.arklay.inclinometro`. Android la trata como una app distinta de la 2.0: no se instala encima y no hereda la calibración ni las salidas. Desinstala la anterior.
+- **Avisos a los dos lados**: ahora avisa cada vez que cabeceo o alabeo entran en peligro, hacia el lado que sea. Antes, si cambiabas de lado en menos de 3 s, o si el otro eje ya estaba en peligro, no avisaba.
+- **Vibración**: se marca como alarma, así los móviles que silencian la vibración de las apps la dejan pasar. Si la unidad no tiene vibración, Ajustes lo indica.
+- **Probar aviso**: botón en Ajustes → Límites para comprobar la vibración y el pitido.
+- **Colores en peligro**: con el fondo rojo, los rótulos del tema Industrial (cabeceo, altímetro, máximos) ya no salen apagados.
+- Compilada para Android 16 (API 36).
 
 ### Instalación
-Descarga el APK de abajo e instálalo. Si Android no deja instalarlo encima de la versión anterior (firma distinta), desinstala la anterior primero.
-Si tenías la app «3 Relojes», era una app aparte: su calibración y sus imágenes no pasan a esta.
+Descarga el APK de abajo e instálalo. Si tenías la 2.0, desinstálala primero.
 
 No está 100 % probada: los fallos se pueden comentar con respeto.

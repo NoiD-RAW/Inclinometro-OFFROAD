@@ -3,14 +3,14 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
-    namespace = "com.example.inclinometro"
-    compileSdk = 34
+    namespace = "dev.arklay.inclinometro"
+    compileSdk = 36
     defaultConfig {
-        applicationId = "com.example.inclinometro"
+        applicationId = "dev.arklay.inclinometro"
         minSdk = 24
-        targetSdk = 34
-        versionCode = 2
-        versionName = "2.0"
+        targetSdk = 36
+        versionCode = 3
+        versionName = "2.1"
     }
     // Firma de las versiones publicadas: la clave llega por variables de entorno (secretos de GitHub Actions), nunca en el repositorio.
     val keystore = System.getenv("KEYSTORE_FILE")

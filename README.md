@@ -39,6 +39,11 @@ Con el emulador de Android Studio (o `emulator` de la línea de comandos):
 ## Publicar una versión
 Al subir una etiqueta `v*` (por ejemplo `git tag v2.0.1 && git push origin v2.0.1`), GitHub Actions compila el APK y publica la release. Si la etiqueta lleva guion (`v2.1.0-beta.1`), se publica como versión preliminar.
 Para que las actualizaciones se instalen encima de la versión anterior, el APK debe ir siempre firmado con la misma clave. Añade estos secretos en el repositorio (Settings → Secrets → Actions): `KEYSTORE_BASE64` (el `.jks` en base64), `KEYSTORE_PASSWORD`, `KEY_ALIAS` y `KEY_PASSWORD`. Sin ellos se publica un APK firmado en modo depuración.
+Con la clave configurada también se genera el `.aab`, que es el formato que pide Google Play.
+
+### Google Play
+El identificador de la app es `dev.arklay.inclinometro` (hasta la 2.0 era `com.example.inclinometro`). Android las trata como apps distintas: la nueva no se instala encima de los APK antiguos y no hereda su calibración ni sus salidas. Conviene desinstalar la antigua.
+Desde la 2.1 la app apunta a Android 16 (API 36), el mínimo que exige Google Play para apps nuevas.
 
 NO está 100% testeada por lo que es posible que tenga fallos, se pueden comentar y dar opiniones con respeto.  
 

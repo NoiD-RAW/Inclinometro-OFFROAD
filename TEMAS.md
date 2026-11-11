@@ -3,7 +3,7 @@
 Un tema cambia **solo el aspecto** de la app. La lectura de sensores, la calibración, los máximos, los avisos y las salidas
 son comunes y no hay que tocarlos.
 
-Cada tema vive en su propio paquete: `app/src/main/java/com/example/inclinometro/themes/<tema>/`.
+Cada tema vive en su propio paquete: `app/src/main/java/dev/arklay/inclinometro/themes/<tema>/`.
 Los dos que trae la app sirven de ejemplo:
 
 | Tema | Carpeta | Pantalla principal |

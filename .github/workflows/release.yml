@@ -15,8 +15,8 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - name: SDK de Android (plataforma 34)
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0" > /dev/null
+      - name: SDK de Android (plataforma 36)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;34.0.0" > /dev/null
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.7
@@ -28,15 +28,16 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
             echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
           fi
-      - name: Compilar APK
+      - name: Compilar APK (y AAB para Google Play si hay clave)
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_FILE" ]; then
-            gradle assembleRelease
+            gradle assembleRelease bundleRelease
             cp app/build/outputs/apk/release/app-release.apk "InclinometroOffroad-$GITHUB_REF_NAME.apk"
+            cp app/build/outputs/bundle/release/app-release.aab "InclinometroOffroad-$GITHUB_REF_NAME.aab"   # para Google Play
           else
             gradle assembleDebug
             cp app/build/outputs/apk/debug/app-debug.apk "InclinometroOffroad-$GITHUB_REF_NAME.apk"
@@ -45,5 +46,5 @@ jobs:
         with:
           name: Inclinómetro OFFROAD ${{ github.ref_name }}
           body_path: .github/release-notes.md
-          files: InclinometroOffroad-*.apk
+          files: InclinometroOffroad-*.*
           prerelease: ${{ contains(github.ref_name, '-') }}
