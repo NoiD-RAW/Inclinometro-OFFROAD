@@ -4,5 +4,5 @@ Imágenes del vehículo (PNG con fondo transparente):
   van_top.png   -> vista desde arriba, con el morro hacia arriba
 
 Para cambiar de vehículo: copia las tres imágenes de la carpeta que quieras (t5 o touareg)
-a app/src/main/res/drawable-nodpi/ sustituyendo las que hay, y vuelve a generar el APK.
+a assets/img/ sustituyendo las que hay, y vuelve a compilar la app.
 La app usa actualmente: T5.

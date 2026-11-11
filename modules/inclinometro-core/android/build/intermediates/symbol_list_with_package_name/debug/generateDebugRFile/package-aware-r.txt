@@ -1,0 +1,1 @@
+dev.arklay.inclinometro.core

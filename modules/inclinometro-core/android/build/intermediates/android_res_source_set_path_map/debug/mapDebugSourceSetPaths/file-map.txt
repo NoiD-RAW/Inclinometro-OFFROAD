@@ -1,0 +1,9 @@
+dev.arklay.inclinometro.core.inclinometro-core-pngs-0 /Users/marc/Documents/hack/inclinometro/InclinometroRN/modules/inclinometro-core/android/build/generated/res/pngs/debug
+dev.arklay.inclinometro.core.inclinometro-core-updated_navigation_xml-1 /Users/marc/Documents/hack/inclinometro/InclinometroRN/modules/inclinometro-core/android/build/generated/updated_navigation_xml/debug
+dev.arklay.inclinometro.core.inclinometro-core-mergeDebugResources-2 /Users/marc/Documents/hack/inclinometro/InclinometroRN/modules/inclinometro-core/android/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+dev.arklay.inclinometro.core.inclinometro-core-mergeDebugResources-3 /Users/marc/Documents/hack/inclinometro/InclinometroRN/modules/inclinometro-core/android/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+dev.arklay.inclinometro.core.inclinometro-core-debug-4 /Users/marc/Documents/hack/inclinometro/InclinometroRN/modules/inclinometro-core/android/build/intermediates/merged_res/debug/mergeDebugResources
+dev.arklay.inclinometro.core.inclinometro-core-debug-5 /Users/marc/Documents/hack/inclinometro/InclinometroRN/modules/inclinometro-core/android/build/intermediates/packaged_res/debug/packageDebugResources
+dev.arklay.inclinometro.core.inclinometro-core-debug-6 /Users/marc/Documents/hack/inclinometro/InclinometroRN/modules/inclinometro-core/android/src/debug/res
+dev.arklay.inclinometro.core.inclinometro-core-main-7 /Users/marc/Documents/hack/inclinometro/InclinometroRN/modules/inclinometro-core/android/src/main/res
+gradleHome-0 /Users/marc/.gradle

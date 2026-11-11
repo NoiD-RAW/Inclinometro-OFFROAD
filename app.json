@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "Inclinómetro OFFROAD",
+    "slug": "inclinometro-offroad",
+    "version": "2.2",
+    "orientation": "default",
+    "icon": "./assets/icon/ios-1024.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#101012",
+    "splash": {
+      "backgroundColor": "#101012"
+    },
+    "ios": {
+      "bundleIdentifier": "dev.arklay.inclinometro",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "es",
+        "NSLocationWhenInUseUsageDescription": "La ubicación se usa para la brújula, la altitud y la velocidad, y para guardar el recorrido de las salidas y verlo en el mapa con las inclinaciones. No sale del dispositivo.",
+        "NSMotionUsageDescription": "El sensor de movimiento mide el cabeceo y el alabeo del vehículo.",
+        "NSPhotoLibraryUsageDescription": "Se usa para elegir las fotos de tu vehículo.",
+        "UIBackgroundModes": [
+          "location"
+        ],
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "La ubicación se usa para la brújula, la altitud y la velocidad, y para guardar el recorrido de las salidas aunque cambies de app. No sale del dispositivo."
+      }
+    },
+    "android": {
+      "package": "dev.arklay.inclinometro",
+      "versionCode": 4,
+      "icon": "./assets/icon/android-legacy.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon/android-fg.png",
+        "backgroundImage": "./assets/icon/android-bg.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/gunplay.otf"
+          ]
+        }
+      ],
+      "@maplibre/maplibre-react-native",
+      "./plugins/withInclinometro"
+    ]
+  }
+}

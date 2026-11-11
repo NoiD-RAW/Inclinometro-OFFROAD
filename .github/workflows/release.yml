@@ -1,6 +1,7 @@
 name: Publicar release
-# Al subir una etiqueta v* (por ejemplo v2.0.1) compila el APK y publica la release con él.
-# Con guion en la etiqueta (v2.1.0-beta.1) se publica como versión preliminar.
+# Al subir una etiqueta v* (por ejemplo v2.2.0) compila el APK de Android y publica la release con él.
+# Con guion en la etiqueta (v2.2.0-beta.1) se publica como versión preliminar.
+# La versión de iOS se compila y se sube al App Store desde Xcode (ver README).
 on:
   push:
     tags: ['v*']
@@ -11,15 +12,15 @@ jobs:
     runs-on: ubuntu-24.04            # ya trae el SDK de Android
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
-      - name: SDK de Android (plataforma 36)
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;34.0.0" > /dev/null
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.7
       - name: Preparar la clave de firma (si está configurada)
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -34,14 +35,15 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          npx expo prebuild --platform android --no-install
+          cd android
           if [ -n "$KEYSTORE_FILE" ]; then
-            gradle assembleRelease bundleRelease
-            cp app/build/outputs/apk/release/app-release.apk "InclinometroOffroad-$GITHUB_REF_NAME.apk"
-            cp app/build/outputs/bundle/release/app-release.aab "InclinometroOffroad-$GITHUB_REF_NAME.aab"   # para Google Play
+            ./gradlew assembleRelease bundleRelease
+            cp app/build/outputs/bundle/release/app-release.aab "../InclinometroOffroad-$GITHUB_REF_NAME.aab"   # para Google Play
           else
-            gradle assembleDebug
-            cp app/build/outputs/apk/debug/app-debug.apk "InclinometroOffroad-$GITHUB_REF_NAME.apk"
+            ./gradlew assembleRelease                                                                         # firmado con la clave de depuración
           fi
+          cp app/build/outputs/apk/release/app-release.apk "../InclinometroOffroad-$GITHUB_REF_NAME.apk"
       - uses: softprops/action-gh-release@v2
         with:
           name: Inclinómetro OFFROAD ${{ github.ref_name }}

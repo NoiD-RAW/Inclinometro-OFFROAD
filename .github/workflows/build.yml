@@ -1,4 +1,6 @@
-name: Compilar APK
+name: Comprobar y compilar APK
+# En cada push: comprueba el código (tipos y lint). En main, o a mano, también compila un APK de prueba
+# (versión final firmada con la clave de depuración, con todo dentro: no necesita el servidor de desarrollo).
 on:
   push:
   workflow_dispatch:
@@ -7,17 +9,25 @@ jobs:
     runs-on: ubuntu-24.04            # ya trae el SDK de Android
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Comprobar el código
+        run: npx tsc --noEmit && npx expo lint
       - uses: actions/setup-java@v5
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         with:
           distribution: temurin
           java-version: 17
-      - name: SDK de Android (plataforma 36)
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;34.0.0" > /dev/null
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.7
-      - run: gradle assembleDebug
+      - name: Compilar APK
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        run: |
+          npx expo prebuild --platform android --no-install
+          cd android && ./gradlew assembleRelease
       - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         with:
           name: InclinometroOffroad-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/release/app-release.apk
