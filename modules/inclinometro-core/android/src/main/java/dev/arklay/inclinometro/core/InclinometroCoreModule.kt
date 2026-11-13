@@ -6,7 +6,6 @@ import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -27,7 +26,6 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
 import java.lang.ref.WeakReference
 import java.text.DecimalFormatSymbols
-import kotlin.math.max
 
 /** Puente entre la interfaz (TypeScript) y la parte nativa: sensores, GPS, avisos, salidas, mini ventana y diálogos.
  *  Hace lo mismo que hacía MainActivity con el código de antes, que se ha mantenido igual (Engine, Alerts, Recorder, TripDb…). */
@@ -247,7 +245,7 @@ class InclinometroCoreModule : Module() {
       var n = 0
       for ((kind, names) in listOf("side" to listOf("lateral.png", "lateral.jpg"), "rear" to listOf("trasera.png", "trasera.jpg", "frontal.png", "frontal.jpg"), "top" to listOf("superior.png", "superior.jpg"))) {
         val f = names.map { File(dir, it) }.firstOrNull { it.exists() } ?: continue
-        BitmapFactory.decodeFile(f.path)?.let { b -> VehicleImages.save(ctx, theme, kind, VehicleImages.prepare(f.inputStream().use { VehicleImages.upright(b, it) }).bitmap); n++ }
+        VehicleImages.decode { f.inputStream() }?.let { b -> VehicleImages.save(ctx, theme, kind, VehicleImages.prepare(b).bitmap); n++ }
       }
       toast(if (n > 0) "Cargadas $n imagen(es)" else "No encontré lateral.png, trasera.png ni superior.png en ${dir.path}", true)
       n
@@ -327,11 +325,7 @@ class InclinometroCoreModule : Module() {
     if (res != Activity.RESULT_OK || uri == null) { chain.clear(); finishChain(); return }
     try {
       val cr = ctx.contentResolver
-      val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-      cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-      var sample = 1; while (max(bounds.outWidth, bounds.outHeight) / sample > 1800) sample *= 2
-      val raw = cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample }) }
-      val src = raw?.let { b -> cr.openInputStream(uri)?.use { VehicleImages.upright(b, it) } ?: b }
+      val src = VehicleImages.decode { cr.openInputStream(uri) }
       if (src != null) {
         val r = VehicleImages.prepare(src); VehicleImages.save(ctx, chainTheme, kind, r.bitmap); chainCount++
         if (r.seemsToHaveBackground) toast("La imagen parece tener fondo. Para un resultado limpio usa un PNG sin fondo.", true)

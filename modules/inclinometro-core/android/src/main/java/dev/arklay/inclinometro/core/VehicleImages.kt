@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStream
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -22,6 +23,20 @@ object VehicleImages {
     fun custom(ctx: Context, theme: String, kind: String): File? = file(ctx, theme, kind).takeIf { it.exists() }
     fun save(ctx: Context, theme: String, kind: String, bmp: Bitmap) { FileOutputStream(file(ctx, theme, kind)).use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) } }
     fun reset(ctx: Context, theme: String) { for (k in kinds) file(ctx, theme, k).delete() }
+
+    /** Lee las dimensiones antes de reservar píxeles y conserva la orientación EXIF en ambos modos de importación. */
+    fun decode(open: () -> InputStream?): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        val header = open() ?: return null
+        header.use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        var sample = 1
+        while (max(bounds.outWidth, bounds.outHeight) / sample > 1800) sample *= 2
+        val raw = open()?.use {
+            BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
+        } ?: return null
+        return open()?.use { upright(raw, it) } ?: raw
+    }
 
     /** Gira o voltea la foto según su orientación EXIF (las fotos del móvil suelen guardarse de lado con esa marca). */
     fun upright(b: Bitmap, exif: java.io.InputStream): Bitmap {
@@ -48,9 +63,9 @@ object VehicleImages {
      * El reloj después encaja el vehículo en su círculo, giros incluidos, sea cual sea su proporción.
      */
     fun prepare(src: Bitmap): Result {
-        var b = src.copy(Bitmap.Config.ARGB_8888, true)
-        val big = 1600f / max(b.width, b.height)
-        if (big < 1f) b = Bitmap.createScaledBitmap(b, (b.width * big).toInt(), (b.height * big).toInt(), true)
+        val big = 1600f / max(src.width, src.height)
+        val bounded = if (big < 1f) Bitmap.createScaledBitmap(src, max(1, (src.width * big).toInt()), max(1, (src.height * big).toInt()), true) else src
+        val b = bounded.copy(Bitmap.Config.ARGB_8888, true)
         val w = b.width; val h = b.height
         val px = IntArray(w * h); b.getPixels(px, 0, w, 0, 0, w, h)
         var transparent = 0; for (v in px) if (Color.alpha(v) < 40) transparent++
