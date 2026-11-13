@@ -12,6 +12,14 @@ public class InclinometroCoreModule: Module {
   private var exporter: ExportDelegate?
 
   private func toast(_ text: String, _ long: Bool = true) { sendEvent("onToast", ["text": text, "long": long]) }
+  private func databaseResult<T>(_ fallback: T, _ action: () throws -> T) -> T {
+    do { return try action() }
+    catch {
+      NSLog("Inclinómetro: error de almacenamiento: %@", error.localizedDescription)
+      toast("No se pudo leer o guardar la salida. Revisa el espacio disponible e inténtalo de nuevo.")
+      return fallback
+    }
+  }
 
   /// Igual que MainActivity: los sensores funcionan mientras la app está a la vista.
   private func enterForeground() {
@@ -32,10 +40,18 @@ public class InclinometroCoreModule: Module {
         let nc = NotificationCenter.default
         self.observers.append(nc.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in self.enterForeground() })
         self.observers.append(nc.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in self.enterBackground() })
+        self.observers.append(nc.addObserver(forName: Recorder.failureNotification, object: nil, queue: .main) { [weak self] note in
+          if let message = note.userInfo?["message"] as? String { self?.toast(message) }
+        })
         if UIApplication.shared.applicationState != .background { self.enterForeground() }
       }
     }
     OnDestroy { for o in self.observers { NotificationCenter.default.removeObserver(o) } }
+    OnStartObserving("onToast") {
+      DispatchQueue.main.async {
+        if let message = Recorder.shared.lastFailure { self.toast(message) }
+      }
+    }
 
     Constants([
       "platform": "ios",
@@ -112,13 +128,13 @@ public class InclinometroCoreModule: Module {
     }.runOnQueue(.main)
 
     // ---------- salidas ----------
-    AsyncFunction("startTrip") { Recorder.shared.begin() }.runOnQueue(.main)
-    AsyncFunction("stopTrip") { Recorder.shared.stop() }.runOnQueue(.main)
+    AsyncFunction("startTrip") { try Recorder.shared.begin() }.runOnQueue(.main)
+    AsyncFunction("stopTrip") { try Recorder.shared.stop() }.runOnQueue(.main)
 
-    Function("trips") { (byAngle: Bool) in TripDb.shared.trips(byAngle: byAngle).map(tripMap) }
-    Function("trip") { (id: Double) -> [String: Any]? in TripDb.shared.trip(Int64(id)).map(tripMap) }
+    Function("trips") { (byAngle: Bool) in self.databaseResult([Trip]()) { try TripDb.shared.trips(byAngle: byAngle) }.map(tripMap) }
+    Function("trip") { (id: Double) -> [String: Any]? in self.databaseResult(nil as Trip?) { try TripDb.shared.trip(Int64(id)) }.map(tripMap) }
     Function("samples") { (id: Double) -> [String: Any] in
-      let s = TripDb.shared.samples(Int64(id))
+      let s = self.databaseResult(Samples()) { try TripDb.shared.samples(Int64(id)) }
       return [
         "t": s.t.map { Double($0) }, "pitch": s.pitch.map { Double($0) }, "roll": s.roll.map { Double($0) },
         "lat": s.lat.map { $0 as Any }, "lon": s.lon.map { $0 as Any },
@@ -126,19 +142,19 @@ public class InclinometroCoreModule: Module {
       ]
     }
     Function("hotspots") {
-      TripDb.shared.hotspots().map { h -> [String: Any] in
+      self.databaseResult([Hotspot]()) { try TripDb.shared.hotspots() }.map { h -> [String: Any] in
         ["trip": Double(h.trip), "tripName": h.tripName, "t": Double(h.t), "lat": h.lat, "lon": h.lon, "pitch": Double(h.pitch), "roll": Double(h.roll), "ratio": Double(h.ratio)]
       }
     }
-    Function("renameTrip") { (id: Double, name: String) in TripDb.shared.rename(Int64(id), name) }
-    Function("deleteTrip") { (id: Double) in TripDb.shared.delete(Int64(id)) }
-    Function("deleteOlderThan") { (before: Double, keep: Double) in TripDb.shared.deleteOlderThan(Int64(min(before, 9e15)), keep: Int64(keep)) }
+    Function("renameTrip") { (id: Double, name: String) in self.databaseResult(()) { try TripDb.shared.rename(Int64(id), name) } }
+    Function("deleteTrip") { (id: Double) in self.databaseResult(()) { try TripDb.shared.delete(Int64(id)) } }
+    Function("deleteOlderThan") { (before: Double, keep: Double) in self.databaseResult(0) { try TripDb.shared.deleteOlderThan(Int64(min(before, 9e15)), keep: Int64(keep)) } }
     Function("dbSize") { Double(TripDb.shared.sizeBytes()) }
 
     /// Guardar como… (selector de Archivos del sistema), como el selector de documentos de Android.
     AsyncFunction("exportTrip") { (id: Double, ext: String, promise: Promise) in
-      guard let t = TripDb.shared.trip(Int64(id)), let vc = self.appContext?.utilities?.currentViewController() else { promise.resolve(nil); return }
-      let s = TripDb.shared.samples(t.id)
+      guard let t = self.databaseResult(nil as Trip?, { try TripDb.shared.trip(Int64(id)) }), let vc = self.appContext?.utilities?.currentViewController() else { promise.resolve(nil); return }
+      guard let s = self.databaseResult(nil as Samples?, { try TripDb.shared.samples(t.id) }) else { promise.resolve(nil); return }
       let url = FileManager.default.temporaryDirectory.appendingPathComponent(Export.fileName(t, ext))
       do { try (ext == "csv" ? Export.csv(t, s) : Export.gpx(t, s)).write(to: url, atomically: true, encoding: .utf8) }
       catch { self.toast("No se pudo exportar: \(error.localizedDescription)"); promise.resolve(nil); return }

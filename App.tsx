@@ -96,14 +96,22 @@ function Main() {
     try {
       await Core.startTrip();
     } catch {
-      toast('No se pudo iniciar la grabación. Revisa los permisos e inténtalo con la app abierta.', true);
+      toast('No se pudo iniciar la grabación. Revisa los permisos y el espacio libre e inténtalo con la app abierta.', true);
+    }
+  }, []);
+  const finishTrip = useCallback(async () => {
+    try {
+      await Core.stopTrip();
+      toast('Salida guardada en el histórico', true);
+    } catch {
+      toast('No se pudo guardar la salida. Revisa el espacio libre del dispositivo e inténtalo de nuevo.', true);
     }
   }, []);
   const toggleTrip = useCallback(async () => {
     const s = Core.getState();
     if (s.recording) {
       if (await Dialogs.confirm('Finalizar salida', `La salida lleva ${clock(Date.now() - s.recordStart)}. Se guardará en el histórico.`, 'Finalizar')) {
-        await Core.stopTrip(); toast('Salida guardada en el histórico', true);
+        await finishTrip();
       }
       return;
     }
@@ -124,7 +132,7 @@ function Main() {
       else if (noNotif) await Core.requestPermissions(false, true);
     } else await Core.requestPermissions(false, true);
     beginTrip();
-  }, [beginTrip]);
+  }, [beginTrip, finishTrip]);
 
   // Simulador de iOS: -demo settings | history | detail | hotspots | trip-start | trip-stop
   useEffect(() => {
@@ -136,7 +144,7 @@ function Main() {
       else if (d === 'hotspots') app.push({ name: 'hotspots' });
       else if (d === 'detail') { const id = Core.trips(false)[0]?.id; if (id !== undefined) { app.push({ name: 'history' }); app.push({ name: 'detail', id }); } }
       else if (d === 'trip-start' && !Core.getState().recording) beginTrip();
-      else if (d === 'trip-stop' && Core.getState().recording) { await Core.stopTrip(); toast('Salida guardada en el histórico', true); }
+      else if (d === 'trip-stop' && Core.getState().recording) await finishTrip();
     }, 1500);
     return () => clearTimeout(t);
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
