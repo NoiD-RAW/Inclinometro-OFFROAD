@@ -48,10 +48,10 @@ object Engine : SensorEventListener {
     val maxima = MaxTracker(500L)
     private var maxLoaded = false; private var maxDirty = false; private var lastMaxSave = 0L
 
-    /** Rumbo mostrado: GPS si el vehículo se mueve; parado, magnetómetro si existe; si no, el último rumbo del GPS. */
-    val heading: Float? get() = if (kmh >= 4f && gpsBearing != null) gpsBearing else (magHeading ?: gpsBearing)
+    /** Rumbo mostrado: GPS reciente en movimiento; si no, magnetómetro o el último rumbo GPS aún vigente. */
+    val heading: Float? get() = if (gpsFresh && kmh >= 4f && gpsBearing != null) gpsBearing else (magHeading ?: gpsBearing.takeIf { gpsFresh })
     /** Hay una posición GPS reciente (de los últimos 5 s). */
-    val gpsFresh: Boolean get() = lastLoc.let { it != null && System.currentTimeMillis() - it.time < 5000 }
+    val gpsFresh: Boolean get() = lastLoc.let { it != null && System.currentTimeMillis() - it.time in 0 until 5000 }
 
     fun acquire(owner: Any, ctx: Context) {
         if (!::app.isInitialized) {
@@ -143,6 +143,8 @@ object Engine : SensorEventListener {
     // ---------- GPS: altitud, velocidad y rumbo ----------
     private val gps = object : LocationListener {
         override fun onLocationChanged(loc: Location) {
+            if (System.currentTimeMillis() - loc.time !in 0 until 5000) return
+            if (!gpsFresh) { prevLoc = null; gpsBearing = null }
             kmh = if (loc.hasSpeed()) loc.speed * 3.6f else 0f
             val okAcc = !loc.hasAccuracy() || loc.accuracy <= 35f
             if (loc.hasBearing() && kmh >= 2f && okAcc) gpsBearing = loc.bearing                       // rumbo que da el propio GPS

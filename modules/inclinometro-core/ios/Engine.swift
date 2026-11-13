@@ -45,10 +45,10 @@ final class Engine: NSObject, CLLocationManagerDelegate {
   private var maxLoaded = false, maxDirty = false
   private var lastMaxSave: Int64 = 0
 
-  /// Rumbo mostrado: GPS si el vehículo se mueve; parado, magnetómetro si existe; si no, el último rumbo del GPS.
-  var heading: Float? { kmh >= 4 && gpsBearing != nil ? gpsBearing : (magHeading ?? gpsBearing) }
+  /// Rumbo mostrado: GPS reciente en movimiento; si no, magnetómetro o el último rumbo GPS aún vigente.
+  var heading: Float? { gpsFresh && kmh >= 4 && gpsBearing != nil ? gpsBearing : (magHeading ?? (gpsFresh ? gpsBearing : nil)) }
   /// Hay una posición GPS reciente (de los últimos 5 s).
-  var gpsFresh: Bool { if let l = lastLoc { return Date().timeIntervalSince(l.timestamp) < 5 }; return false }
+  var gpsFresh: Bool { if let l = lastLoc { return (0..<5).contains(Date().timeIntervalSince(l.timestamp)) }; return false }
 
   /// Copia de lo que muestra la interfaz: la lee desde su propio hilo sin tocar el estado que cambia el hilo principal.
   struct Snapshot { var roll = 0.0, pitch = 0.0, heading: Double? = nil, altitude: Double? = nil, kmh = 0.0, gps = false, pitchLevel = 0, rollLevel = 0, max = [0.0, 0.0, 0.0, 0.0] }
@@ -240,7 +240,8 @@ final class Engine: NSObject, CLLocationManagerDelegate {
     for loc in locs { onLocation(loc) }
   }
   private func onLocation(_ loc: CLLocation) {
-    if loc.horizontalAccuracy < 0 || -loc.timestamp.timeIntervalSinceNow > 5 { return }      // posiciones guardadas de antes: el GPS de Android solo da lecturas nuevas
+    if loc.horizontalAccuracy < 0 || !(0..<5).contains(-loc.timestamp.timeIntervalSinceNow) { return }
+    if !gpsFresh { prevLoc = nil; gpsBearing = nil }                                        // no calcular el rumbo a través de una pérdida de señal
     kmh = loc.speed >= 0 ? Float(loc.speed) * 3.6 : 0
     let okAcc = loc.horizontalAccuracy < 0 || loc.horizontalAccuracy <= 35
     if loc.course >= 0 && kmh >= 2 && okAcc { gpsBearing = Float(loc.course) }                    // rumbo que da el propio GPS
