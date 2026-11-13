@@ -1,0 +1,76 @@
+# Keep the .gitignore rules: EAS uses this file instead of .gitignore.
+
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+/dist/
+/web-build/
+expo-env.d.ts
+
+# Generated native projects (keep modules/*/android and modules/*/ios source)
+/ios/
+/android/
+
+# Native build output and caches, including local Expo modules
+build/
+Pods/
+DerivedData/
+.gradle/
+.kotlin/
+.cxx/
+local.properties
+*.orig.*
+
+# Signing credentials and store service-account keys
+/credentials.json
+/credentials/
+google-service-account*.json
+play-service-account*.json
+*.keystore
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+
+# Build and distribution artifacts
+*.apk
+*.aab
+*.ipa
+*.xcarchive/
+*.dSYM/
+*.dSYM.zip
+
+# Metro and tooling caches
+.metro-health-check*
+.eslintcache
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Local editor and OS files
+.idea/
+*.iml
+.claude/settings.local.json
+.DS_Store
+Thumbs.db
+
+# Local environment files; keep checked-in examples
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Store artwork, reference photos and Git history are not build inputs.
+/store/
+/vehiculos/
+.git
