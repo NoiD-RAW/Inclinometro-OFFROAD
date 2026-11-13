@@ -1,45 +1,69 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
+# Dependencies
 node_modules/
 
 # Expo
 .expo/
-dist/
-web-build/
+/dist/
+/web-build/
 expo-env.d.ts
 
-# Native
+# Generated native projects (keep modules/*/android and modules/*/ios source)
+/ios/
+/android/
+
+# Native build output and caches, including local Expo modules
+build/
+Pods/
+DerivedData/
+.gradle/
 .kotlin/
+.cxx/
+local.properties
 *.orig.*
+
+# Signing credentials and store service-account keys
+/credentials.json
+/credentials/
+google-service-account*.json
+play-service-account*.json
+*.keystore
 *.jks
 *.p8
 *.p12
 *.key
+*.pem
 *.mobileprovision
 
-# Metro
-.metro-health-check*
+# Build and distribution artifacts
+*.apk
+*.aab
+*.ipa
+*.xcarchive/
+*.dSYM/
+*.dSYM.zip
 
-# debug
+# Metro and tooling caches
+.metro-health-check*
+.eslintcache
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS
+# Local editor and OS files
+.idea/
+*.iml
+.claude/settings.local.json
 .DS_Store
-*.pem
+Thumbs.db
 
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-# generated native folders
-/ios
-/android
-
-# Carpetas nativas: las genera "npx expo prebuild" a partir de app.json y modules/
-/ios
-/android
+# Local environment files; keep checked-in examples
+.env
+.env.*
+!.env.example
+!.env.*.example

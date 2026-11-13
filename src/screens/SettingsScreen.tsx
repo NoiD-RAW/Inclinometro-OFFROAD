@@ -1,6 +1,6 @@
 import { Canvas, Image as SkiaImage, type SkImage } from '@shopify/react-native-skia';
 import { useState, type ReactNode } from 'react';
-import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { setConfig } from '../config';
@@ -9,6 +9,7 @@ import { useApp } from '../AppState';
 import { useAssets } from '../gfx/assets';
 import { WHITE, css, hex, parseHex, rgb } from '../gfx/color';
 import { Fmt, round, sampleLabel, signed1, windowLabel } from '../fmt';
+import { OSM_PRIVACY_URL, PRIVACY_SECTIONS, PRIVACY_UPDATED, PRIVACY_URL, SUPPORT_EMAIL, SUPPORT_EMAIL_URL, SUPPORT_URL } from '../privacy';
 import { THEMES, accentOf, useVehicle } from '../themes';
 import { demoState, type Kind, type Theme } from '../themes/types';
 import { Dialogs, toast } from '../ui/dialogs';
@@ -140,8 +141,50 @@ export function SettingsScreen() {
           <B text="←  Volver" filled={false} accent={accent} onPress={app.showDash} style={styles.back} label="Volver" />
           <L text="Ajustes" size={22} color={ui.text} style={styles.title} />
         </View>
-        <View style={{ width: !wide && width > 700 ? 640 : '100%' }}>{body}</View>
+        <View style={{ width: !wide && width > 700 ? 640 : '100%' }}>
+          <PrivacySection />
+          <View style={styles.gap}>{body}</View>
+        </View>
       </ScrollView>
+    </View>
+  );
+}
+
+/** La política completa se puede leer sin conexión y sin salir de Ajustes. */
+function PrivacySection() {
+  const { ui, accent } = useApp();
+  const [expanded, setExpanded] = useState(false);
+  const openLink = async (url: string) => {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      toast(url === SUPPORT_EMAIL_URL
+        ? `No se ha podido abrir tu app de correo. Puedes escribir a ${SUPPORT_EMAIL}.`
+        : 'No se ha podido abrir el enlace. La política está disponible aquí, sin conexión.', true);
+    }
+  };
+  const link = (text: string, url: string) => (
+    <ui.Button text={text} filled={false} accent={accent} onPress={() => { void openLink(url); }} style={styles.btn} />
+  );
+  return (
+    <View>
+      <ui.Section title="Privacidad y soporte" accent={accent}>
+        <ui.Button text={expanded ? 'Ocultar política de privacidad' : 'Leer política de privacidad'} filled={false} accent={accent}
+          onPress={() => setExpanded((value) => !value)} style={styles.btn} />
+        {link('Soporte y consultas de privacidad', SUPPORT_EMAIL_URL)}
+      </ui.Section>
+      {expanded && <View style={[styles.privacy, { backgroundColor: css(ui.background) }]}>
+        <Text selectable style={[styles.privacyText, { color: css(ui.text) }]}>{`Actualizada el ${PRIVACY_UPDATED}. Disponible sin conexión.`}</Text>
+        {PRIVACY_SECTIONS.map(({ title, body }) => (
+          <View key={title} style={styles.gap}>
+            <Text accessibilityRole="header" style={[styles.privacyText, styles.privacyTitle, { color: css(ui.text) }]}>{title}</Text>
+            <Text selectable style={[styles.privacyText, { color: css(ui.text) }]}>{body}</Text>
+          </View>
+        ))}
+        {link('Política de privacidad en la web', PRIVACY_URL)}
+        {link('Web de soporte', SUPPORT_URL)}
+        {link('Privacidad de OpenStreetMap', OSM_PRIVACY_URL)}
+      </View>}
     </View>
   );
 }
@@ -280,6 +323,9 @@ function HexRow() {
 
 const styles = StyleSheet.create({
   btn: { height: 50, marginTop: 8 },
+  privacy: { padding: 16, marginTop: 8, borderRadius: 8 },
+  privacyText: { fontSize: 15, lineHeight: 22 },
+  privacyTitle: { fontWeight: 'bold', marginBottom: 6 },
   back: { width: 130, height: 50 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   row: { flexDirection: 'row' },

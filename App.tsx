@@ -1,6 +1,6 @@
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,6 +10,7 @@ import { AppCtx, useEngine, type App, type Route } from './src/AppState';
 import { AssetsProvider, useAssets } from './src/gfx/assets';
 import { css } from './src/gfx/color';
 import { clock } from './src/fmt';
+import { BACKGROUND_RECORDING_DISCLOSURE } from './src/privacy';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { HotspotsScreen } from './src/screens/HotspotsScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -90,7 +91,14 @@ function Main() {
   }, [stack, base, app]);
 
   // ---------- salidas ----------
-  const beginTrip = useCallback(async () => { await Core.startTrip(); toast('Salida iniciada'); }, []);
+  const tripDisclosureAccepted = useRef(false);
+  const beginTrip = useCallback(async () => {
+    try {
+      await Core.startTrip();
+    } catch {
+      toast('No se pudo iniciar la grabación. Revisa los permisos e inténtalo con la app abierta.', true);
+    }
+  }, []);
   const toggleTrip = useCallback(async () => {
     const s = Core.getState();
     if (s.recording) {
@@ -99,13 +107,19 @@ function Main() {
       }
       return;
     }
+    // También se muestra si el permiso del panel ya estaba concedido: grabar añade uso en segundo plano.
+    if (!tripDisclosureAccepted.current) {
+      if (!(await Dialogs.confirm('Grabación de una salida', BACKGROUND_RECORDING_DISCLOSURE, 'Continuar'))) return;
+      tripDisclosureAccepted.current = true;
+    }
     const noLoc = !Core.hasLocationPermission();
     const noNotif = android && !Core.hasNotificationPermission();      // aviso de «grabando» en la barra de notificaciones
     if (!noLoc && !noNotif) { beginTrip(); return; }
     if (noLoc) {
       const yes = await Dialogs.choice('Ubicación para la salida',
         'La ubicación se usa para guardar el recorrido (posición, altitud y velocidad) y verlo después en el mapa con las inclinaciones. ' +
-        'No sale del dispositivo. Sin ella, la salida se graba igual, pero sin posición.', 'Permitir', 'Grabar sin GPS');
+        'La base de datos de salidas se guarda en este dispositivo. Al abrir el mapa, OpenStreetMap recibe las zonas consultadas y tu dirección IP. ' +
+        'Sin ubicación puedes grabar inclinaciones sin posición.', 'Permitir', 'Grabar sin GPS');
       if (yes) await Core.requestPermissions(true, noNotif);
       else if (noNotif) await Core.requestPermissions(false, true);
     } else await Core.requestPermissions(false, true);

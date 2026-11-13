@@ -1,0 +1,33 @@
+{
+  "method": "xcrun simctl io screenshot; opaque alpha removed losslessly, native dimensions preserved",
+  "capturedAtUTC": "2026-11-12T18:22:57.113625+00:00",
+  "simulatorName": "Arklay-Store-iPad",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "bundleIdentifier": "dev.arklay.inclinometro",
+  "appVersion": "2.2.0",
+  "buildNumber": "1",
+  "screenshots": [
+    {
+      "file": "01-industrial.png",
+      "width": 2064,
+      "height": 2752,
+      "alpha": false,
+      "rgbSha256": "13c8d48c407293be9b0409108672c780e958a25e9afb23b60f73f71cfbdc15c9"
+    },
+    {
+      "file": "03-topografico.png",
+      "width": 2064,
+      "height": 2752,
+      "alpha": false,
+      "rgbSha256": "ff5aaa4b49c5d9285924ec18e2ea327e5532d0961098722704855b933b6437d1"
+    },
+    {
+      "file": "06-ajustes.png",
+      "width": 2064,
+      "height": 2752,
+      "alpha": false,
+      "rgbSha256": "cf35255f4a4f79c7e515a79f3c5eab952ce8737c6278c41e30e03ac72fb3bdbd"
+    }
+  ],
+  "gpsData": null
+}

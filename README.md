@@ -38,40 +38,69 @@ La versión anterior, solo para Android y escrita en Kotlin, se conserva en la r
 Para crear un tema nuevo, ver [TEMAS.md](TEMAS.md).
 
 ## Compilar
-Requisitos: Node 20 o superior. Para iOS, un Mac con Xcode 26 y CocoaPods. Para Android, el SDK de Android y JDK 17.
+Requisitos: Node 22.13 o superior y npm. Para compilar para las tiendas se usa Expo Build (EAS), sin necesidad de instalar Xcode ni Android Studio. El desarrollo nativo local requiere el SDK de Android y un JDK compatible, o un Mac con Xcode 26.4 o superior y CocoaPods para iOS.
 
 ```
-npm install
+npm ci
 npx expo prebuild          # genera android/ e ios/
 npx expo run:ios           # simulador o iPhone conectado
 npx expo run:android       # emulador o móvil conectado
 ```
 
-Comprobar el código: `npx tsc --noEmit` y `npx expo lint`.
+Comprobar el código: `npm run check` (TypeScript, lint y pruebas de configuración de firma). Comprobar textos, identificadores, imágenes y la política web: `npm run store:check`.
+
+No se versionan `android/`, `ios/`, cachés, credenciales ni carpetas `build/` de los módulos. El código nativo propio de `modules/inclinometro-core/android/` y `modules/inclinometro-core/ios/` sí se conserva. Los cambios nativos de la app se hacen mediante `app.json` y plugins.
 
 ## Publicar una versión
-La versión se cambia en `app.json`: `version`, `android.versionCode` e `ios.buildNumber` (cada subida a las tiendas necesita un número mayor que la anterior).
+El identificador de las dos plataformas es **`dev.arklay.inclinometro`**. No lo cambies para una actualización: un identificador diferente crea otra app y no hereda los datos de la anterior.
+
+La versión visible se cambia en `app.json` y `package.json` (actualmente `2.2.0`). `eas.json` usa versiones de compilación remotas e incrementa automáticamente `versionCode` y `buildNumber` en producción. Al vincular el proyecto por primera vez, comprueba que la numeración remota sea mayor que la última subida a cada tienda; puedes inicializarla con `npx eas-cli@latest build:version:set`. En builds fuera de EAS debes incrementar los valores locales de `app.json`.
+
+### Compilar con Expo Build
+
+Con una cuenta de Expo y las cuentas de desarrollador de las tiendas:
+
+```sh
+npx eas-cli@latest login
+npx eas-cli@latest build:configure
+npx eas-cli@latest build --platform all --profile production
+```
+
+Vincula la cuenta/proyecto reales cuando lo solicite la CLI; el repositorio no contiene identificadores ni credenciales inventados. Expo gestiona las credenciales de distribución. Si ya existe una app Android publicada, importa su clave de subida mediante `npx eas-cli@latest credentials --platform android` en lugar de generar otra distinta.
+
+Los perfiles preparados son `production` (AAB para Play y build de tienda para Apple), `preview` (distribución interna, APK en Android) y `simulator` (iOS Simulator). Todos conservan el mismo identificador. El perfil de envío Android apunta a una versión **borrador del canal interno**; no publica automáticamente en producción.
 
 ### Android y Google Play
-Al subir una etiqueta `v*` (por ejemplo `git tag v2.2.0 && git push origin v2.2.0`), GitHub Actions compila el APK y publica la release. Si la etiqueta lleva guion (`v2.2.0-beta.1`), se publica como versión preliminar. En cada push a `main` también se compila un APK de prueba (en «Actions»).
+Sube primero un AAB firmado a la prueba interna de Play Console y revisa los informes de compatibilidad. La primera subida se hace manualmente en Play Console. Para las siguientes puedes configurar una cuenta de servicio de Google en Expo y ejecutar `npx eas-cli@latest submit --platform android --profile production`.
 
-Para que las actualizaciones se instalen encima de la versión anterior, el APK debe ir siempre firmado con la misma clave. Añade estos secretos en el repositorio (Settings → Secrets → Actions): `KEYSTORE_BASE64` (el `.jks` en base64), `KEYSTORE_PASSWORD`, `KEY_ALIAS` y `KEY_PASSWORD`. Con ellos también se genera el `.aab`, que es el formato que pide Google Play. Sin ellos se publica un APK firmado con la clave de depuración.
+También se conserva el flujo de GitHub Actions: una etiqueta `v*` compila APK y AAB firmados y publica los archivos en GitHub Releases, sin enviarlos a Play. Necesita los cuatro secretos `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` y `KEY_PASSWORD`. Si falta alguno, el flujo falla antes de compilar: no se publica una release con la clave de depuración. El APK de prueba de `main` permite esa clave únicamente con `INCLINOMETRO_PREVIEW_BUILD=1` y no sirve para subir a Play.
 
 En local, con las mismas variables de entorno (`KEYSTORE_FILE` con la ruta del `.jks`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`):
 ```
 npx expo prebuild --platform android
-cd android && ./gradlew bundleRelease     # android/app/build/outputs/bundle/release/app-release.aab
+cd android && ./gradlew bundleRelease     # requiere las cuatro variables de firma
 ```
 
-El identificador de la app es `dev.arklay.inclinometro` (hasta la 2.0 era `com.example.inclinometro`). Android las trata como apps distintas: la nueva no se instala encima de los APK antiguos y no hereda su calibración ni sus salidas. Conviene desinstalar la antigua. La app apunta a Android 16 (API 36), el mínimo que exige Google Play para apps nuevas.
+Expo SDK 58 apunta por defecto a Android 16 (API 36). Antes del envío valida el AAB final en Play Console, incluida la compatibilidad de 16 KB de sus bibliotecas nativas. La app anterior a la 2.1 usaba `com.example.inclinometro`, que Android trata como una app distinta. Las cuentas personales de Play creadas después del 13 de noviembre de 2023 necesitan la prueba cerrada exigida por Google (12 personas inscritas durante 14 días continuos) antes de solicitar acceso a producción.
 
 ### iPhone y App Store
-Con una cuenta de desarrollador de Apple:
-1. Registrar el identificador `dev.arklay.inclinometro` y crear la app en App Store Connect.
-2. `npx expo prebuild --platform ios`, abrir `ios/InclinometroOFFROAD.xcworkspace` en Xcode y elegir el equipo en «Signing & Capabilities».
-3. *Product → Archive* y subirla desde el organizador (primero a TestFlight para probarla en un iPhone).
+Registra `dev.arklay.inclinometro` en tu cuenta de Apple Developer y crea la app en App Store Connect. Compila con el perfil `production` y ejecuta `npx eas-cli@latest submit --platform ios --profile production` para enviarla a App Store Connect/TestFlight. La revisión y publicación de la ficha se completan después en App Store Connect.
+
+La configuración mantiene soporte para iPhone e iPad. Usa capturas reales sin alfa y añade las de iPad de 13 pulgadas. El manifiesto de privacidad de iOS declara el uso de preferencias, fechas de archivos y tiempo de arranque para los ajustes, las imágenes y el cálculo de intervalos del sensor.
 
 Textos e imágenes para las tiendas: `store/ficha.md` (comprobar con `python3 store/comprobar_ficha.py`), `store/google-play/` y `store/app-store/`.
+
+### Antes de enviar a revisión
+
+- El correo público de soporte y privacidad es `inclinometro@palaueb.com`. Revisa el nombre del desarrollador de la ficha; se conservan los créditos y enlaces existentes de NoiD y Palaueb.
+- Ejecuta `npm run store:privacy` y publica `store/privacidad.html` en `https://palaueb.com/inclinometro/privacidad.html`. La política incluida en Ajustes funciona sin conexión; la versión web debe describir las mismas prácticas. La URL actual puede contener una versión anterior.
+- Completa Seguridad de los datos y Privacidad de la app teniendo en cuenta las peticiones al proveedor del mapa, además del almacenamiento local. Prepara la declaración y el vídeo del servicio de grabación de Android.
+- Prueba en un Android y un iPhone/iPad reales: permisos concedidos y denegados, pantalla bloqueada, salida y retorno a otra app, finalizar/reabrir una salida, exportaciones y eliminación. El simulador de iOS no comprueba los sensores.
+- En Android 15+, comprueba el timeout de grabación sin GPS con `adb shell am compat enable FGS_INTRODUCE_TIME_LIMITS dev.arklay.inclinometro` y, en un dispositivo de pruebas, reduce temporalmente `data_sync_fgs_timeout_duration` con `adb shell device_config put activity_manager data_sync_fgs_timeout_duration 60000`. Inicia una salida sin ubicación y minimiza. Debe finalizar y conservarse en el histórico. Al terminar restaura el valor con `adb shell device_config delete activity_manager data_sync_fgs_timeout_duration` y desactiva el cambio con `adb shell am compat disable FGS_INTRODUCE_TIME_LIMITS dev.arklay.inclinometro`.
+
+Referencias: [Expo SDK 58](https://docs.expo.dev/versions/v58.0.0/), [versiones remotas](https://docs.expo.dev/build-reference/app-versions/), [envío Android](https://docs.expo.dev/submit/android/), [envío iOS](https://docs.expo.dev/submit/ios/), [política de ubicación de Google](https://support.google.com/googleplay/android-developer/answer/9799150), [timeouts de Android](https://developer.android.com/develop/background-work/services/fgs/timeout).
+
+`npm audit` todavía puede señalar [CVE-2026-118764 de minimatch](https://github.com/advisories/GHSA-g3hv-75wg-m249) a través de las herramientas de fingerprint de Expo. `@expo/fingerprint` 0.21.10 usa el nivel de optimización 1; el aviso requiere patrones controlados por un atacante con nivel 2 o superior, y la propia implementación de Expo documenta que no se activa en ese uso. No se ha aplicado `npm audit fix --force`, que propone bajar a un SDK anterior incompatible con esta preparación.
 
 ## Cómo probar sin salir con el coche
 ### Android (emulador)
@@ -93,6 +122,7 @@ Con la app abierta, la inclinación se cambia con `xcrun simctl spawn booted def
 
 ## Limitaciones conocidas
 - En Android, con la app en segundo plano, la grabación continúa gracias a un servicio en primer plano. Algunas unidades con «ahorro de batería» agresivo pueden cerrarlo: si pasa, la app retoma la misma salida al volver a abrirla. Conviene excluir la app de la optimización de batería.
+- Sin ubicación, Android usa un servicio `dataSync` para la grabación: Android 15 o superior limita su tiempo en segundo plano. Cuando vence el límite, la app guarda y finaliza la salida; no la reinicia automáticamente.
 - La pantalla se mantiene encendida mientras la app está visible. Si otra app ocupa la pantalla, el apagado depende de esa app.
 - La altitud del GPS es poco precisa (±10–20 m).
 - Una salida ocupa unos 0,3 MB por hora a 1 muestra por segundo. El histórico muestra el total y permite borrar las salidas antiguas.

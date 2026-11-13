@@ -1,0 +1,33 @@
+{
+  "captured_on": "2026-11-12",
+  "application_id": "dev.arklay.inclinometro",
+  "apk_sha256": "e02dd966ae9dd61b8627d6a0ee7f010a7e68b1e673e02bfbfa4185b5f2597ea4",
+  "source": "adb exec-out screencap -p on a dedicated temporary Android emulator",
+  "system_image": "android-37.0/google_apis_playstore_ps16k/arm64-v8a",
+  "memory_page_size_bytes": 16384,
+  "native_display_pixels": [
+    1080,
+    2160
+  ],
+  "display_density_dpi": 420,
+  "conversion": "PNG to JPEG quality 95 using sips; no resize, crop, compositing or UI edits",
+  "screenshots": {
+    "capturas/06-salida-mapa.jpg": "Actual saved trip detail with OpenStreetMap map tiles, persistent attribution and selected chart sample. A short GPS route and accelerometer values were simulated through the emulator console; the app recorded and saved the samples normally.",
+    "capturas/07-temas.jpg": "Current Settings screen, showing Privacy and support before the theme picker."
+  },
+  "verified_runtime": [
+    "Cold launch",
+    "Skia dashboard and chart rendering",
+    "GPS receipt",
+    "Trip start, recording and finish",
+    "History navigation",
+    "MapLibre map and marker rendering",
+    "Persistent OpenStreetMap attribution",
+    "Settings rendering"
+  ],
+  "limitations": [
+    "Preview APK, not signed with production distribution credentials",
+    "Emulator sensor and GPS inputs do not validate physical-device accuracy",
+    "Accelerated background-service timeout not tested in this capture session"
+  ]
+}

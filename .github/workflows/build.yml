@@ -15,7 +15,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Comprobar el código
-        run: npx tsc --noEmit && npx expo lint
+        run: npm run check && npm run store:check
       - uses: actions/setup-java@v5
         if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         with:
@@ -23,6 +23,8 @@ jobs:
           java-version: 17
       - name: Compilar APK
         if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        env:
+          INCLINOMETRO_PREVIEW_BUILD: '1'
         run: |
           npx expo prebuild --platform android --no-install
           cd android && ./gradlew assembleRelease

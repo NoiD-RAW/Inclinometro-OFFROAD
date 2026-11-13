@@ -2,33 +2,52 @@
   "expo": {
     "name": "Inclinómetro OFFROAD",
     "slug": "inclinometro-offroad",
-    "version": "2.2",
+    "version": "2.2.0",
     "orientation": "default",
     "icon": "./assets/icon/ios-1024.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#101012",
-    "splash": {
-      "backgroundColor": "#101012"
-    },
     "ios": {
       "bundleIdentifier": "dev.arklay.inclinometro",
       "buildNumber": "1",
       "supportsTablet": true,
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": ["35F9.1"]
+          }
+        ]
+      },
       "infoPlist": {
         "CFBundleDevelopmentRegion": "es",
-        "NSLocationWhenInUseUsageDescription": "La ubicación se usa para la brújula, la altitud y la velocidad, y para guardar el recorrido de las salidas y verlo en el mapa con las inclinaciones. No sale del dispositivo.",
+        "NSLocationWhenInUseUsageDescription": "La ubicación permite mostrar rumbo, altitud y velocidad, y guardar tus recorridos en este dispositivo. Al abrir un mapa, OpenStreetMap recibe tu IP y las zonas consultadas.",
         "NSMotionUsageDescription": "El sensor de movimiento mide el cabeceo y el alabeo del vehículo.",
         "NSPhotoLibraryUsageDescription": "Se usa para elegir las fotos de tu vehículo.",
         "UIBackgroundModes": [
           "location"
         ],
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "La ubicación se usa para la brújula, la altitud y la velocidad, y para guardar el recorrido de las salidas aunque cambies de app. No sale del dispositivo."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Durante una salida que inicias, la ubicación permite guardar tu recorrido aunque cambies de app o bloquees la pantalla. Puedes detener la grabación desde la app."
       }
     },
     "android": {
       "package": "dev.arklay.inclinometro",
       "versionCode": 4,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "icon": "./assets/icon/android-legacy.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon/android-fg.png",

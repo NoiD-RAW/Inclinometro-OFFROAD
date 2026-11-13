@@ -15,6 +15,8 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
+import android.util.Log
+import android.widget.Toast
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -33,10 +35,31 @@ object Recorder {
     }
     fun stop(ctx: Context) { if (active) ctx.startService(Intent(ctx, RecordingService::class.java).setAction(RecordingService.STOP)) }
     /** Si el sistema cerró la app con una salida en curso, la retoma al volver a abrirla. */
-    fun ensureRunning(ctx: Context) { if (active && !RecordingService.running) launch(ctx) }
+    fun ensureRunning(ctx: Context) {
+        if (!active || RecordingService.running) return
+        try {
+            launch(ctx)
+        } catch (e: RuntimeException) {
+            // No hay una promesa de JS en la recuperación del ciclo de vida; launch ya ha finalizado la salida y avisado.
+            if (e !is SecurityException && e !is IllegalStateException) throw e
+        }
+    }
     private fun launch(ctx: Context) {
         val i = Intent(ctx, RecordingService::class.java)
-        if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(i) else ctx.startService(i)
+        try {
+            if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(i) else ctx.startService(i)
+        } catch (e: RuntimeException) {
+            if (e !is SecurityException && e !is IllegalStateException) throw e
+            startFailed(ctx, e)
+            throw e // el puente rechaza startTrip: la interfaz no debe anunciar una salida iniciada
+        }
+    }
+
+    /** Un inicio rechazado no debe dejar una salida que parezca seguir grabando ni reintentarse al abrir la app. */
+    fun startFailed(ctx: Context, error: RuntimeException) {
+        Config.activeTrip = -1; Config.activeStart = 0
+        Log.w("InclinometroRecorder", "No se pudo iniciar el servicio de grabación", error)
+        Toast.makeText(ctx, "No se pudo iniciar la grabación. Revisa los permisos e inténtalo con la app abierta.", Toast.LENGTH_LONG).show()
     }
 
     /** "1:02:03" o "12:03". */
@@ -89,8 +112,15 @@ class RecordingService : Service() {
         Config.init(this)                                                           // el sistema puede reabrir el servicio sin abrir la app
         if (i?.action == STOP) { finish(); return START_NOT_STICKY }
         val id = Config.activeTrip
-        if (id < 0) { stopSelf(); return START_NOT_STICKY }
-        startForeground()
+        if (id < 0) { finish(); return START_NOT_STICKY }
+        try {
+            startForeground()
+        } catch (e: RuntimeException) {
+            if (e !is SecurityException && e !is IllegalStateException) throw e
+            finish()
+            Recorder.startFailed(this, e)
+            return START_NOT_STICKY
+        }
         if (trip != id) begin(id)
         return START_STICKY                                                         // si el sistema la cierra, se vuelve a abrir y sigue la misma salida
     }
@@ -109,16 +139,36 @@ class RecordingService : Service() {
     }
 
     private fun finish() {
-        save(); trip = -1; Config.activeTrip = -1
-        if (Build.VERSION.SDK_INT >= 24) stopForeground(STOP_FOREGROUND_REMOVE) else @Suppress("DEPRECATION") stopForeground(true)
-        stopSelf()
+        try {
+            save()
+        } finally {
+            trip = -1; Config.activeTrip = -1; Config.activeStart = 0
+            releaseRecording()
+            if (Build.VERSION.SDK_INT >= 24) stopForeground(STOP_FOREGROUND_REMOVE) else @Suppress("DEPRECATION") stopForeground(true)
+            stopSelf()
+        }
+    }
+
+    /** Android 15+ limita dataSync a seis horas en segundo plano: conservar la salida y finalizar sin reiniciarla. */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        finish()
+        Toast.makeText(this, "Android ha finalizado la grabación en segundo plano. La salida se ha guardado.", Toast.LENGTH_LONG).show()
     }
 
     override fun onDestroy() {
-        save(); running = false
+        try {
+            save()
+        } finally {
+            releaseRecording()
+            super.onDestroy()
+        }
+    }
+
+    private fun releaseRecording() {
+        running = false
         h.removeCallbacks(sampler); Engine.listeners -= onTick; Engine.release(this)
         wake?.let { if (it.isHeld) it.release() }
-        super.onDestroy()
+        wake = null
     }
 
     private fun startForeground() {

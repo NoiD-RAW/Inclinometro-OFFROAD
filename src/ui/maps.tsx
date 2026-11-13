@@ -3,17 +3,20 @@ import {
 } from '@maplibre/maplibre-react-native';
 import type { StyleSpecification } from '@maplibre/maplibre-gl-style-spec';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from 'react-native';
 
 import type { Hotspot, Samples, Trip } from '../../modules/inclinometro-core';
 import { blue, css, green, red, rgb, withAlpha } from '../gfx/color';
 import { Fmt } from '../fmt';
 import type { Theme } from '../themes/types';
+import { toast } from './dialogs';
+
+const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
 
 /** Mapas OpenStreetMap: gratis y sin clave. Las teselas vistas se guardan en la caché del mapa para zonas sin cobertura. */
 const OSM: StyleSpecification = {
   version: 8,
-  sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap' } },
+  sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: `© <a href="${OSM_COPYRIGHT_URL}">OpenStreetMap contributors</a>` } },
   layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
 };
 
@@ -49,11 +52,17 @@ function BaseMap({ children, lats, lons, onView, cameraRef, onPress, style }: {
   const init = useMemo(() => initialView(lats, lons), [lats, lons]);
   const changed = (e: NativeSyntheticEvent<ViewStateChangeEvent>) => onView?.({ zoom: e.nativeEvent.zoom, bounds: e.nativeEvent.bounds });
   return (
-    <Map style={[styles.map, style]} mapStyle={OSM} touchRotate={false} touchPitch={false} compass={false} logo={false} attribution attributionPosition={{ bottom: 4, right: 4 }}
-      onRegionDidChange={changed} onPress={onPress}>
-      <Camera ref={cameraRef} initialViewState={init} minZoom={3} maxZoom={19} />
-      {children}
-    </Map>
+    <View style={[styles.map, style]}>
+      <Map style={StyleSheet.absoluteFill} mapStyle={OSM} touchRotate={false} touchPitch={false} compass={false} logo={false} attribution attributionPosition={{ bottom: 4, right: 4 }}
+        onRegionDidChange={changed} onPress={onPress}>
+        <Camera ref={cameraRef} initialViewState={init} minZoom={3} maxZoom={19} />
+        {children}
+      </Map>
+      <Pressable accessibilityRole="link" accessibilityLabel="OpenStreetMap contributors: licencia y atribución" hitSlop={6} style={styles.attribution}
+        onPress={() => { void Linking.openURL(OSM_COPYRIGHT_URL).catch(() => toast('No se ha podido abrir la licencia de OpenStreetMap.', true)); }}>
+        <Text style={styles.attributionText}>© OpenStreetMap contributors</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -186,6 +195,8 @@ export function HotspotMap({ pts, theme, caution, selected, onTap, style }: {
 
 const styles = StyleSheet.create({
   map: { flex: 1, borderRadius: 0 },
+  attribution: { position: 'absolute', bottom: 6, left: 6, paddingHorizontal: 5, paddingVertical: 3, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.94)' },
+  attributionText: { color: '#17212d', fontSize: 11, lineHeight: 15 },
   marker: { alignItems: 'center' },
   mBox: { backgroundColor: 'rgba(20,20,22,0.9)', borderWidth: 2, borderRadius: 6, height: 24, paddingHorizontal: 7, justifyContent: 'center' },
   mText: { color: '#fff', fontSize: 13 },

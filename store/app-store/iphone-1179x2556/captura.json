@@ -1,0 +1,26 @@
+{
+  "method": "xcrun simctl io screenshot; opaque alpha removed losslessly, native dimensions preserved",
+  "capturedAtUTC": "2026-11-12T18:24:25.329864+00:00",
+  "simulatorName": "Arklay-Store-iPhone-1179",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "bundleIdentifier": "dev.arklay.inclinometro",
+  "appVersion": "2.2.0",
+  "buildNumber": "1",
+  "screenshots": [
+    {
+      "file": "06-ajustes.png",
+      "width": 1179,
+      "height": 2556,
+      "alpha": false,
+      "rgbSha256": "79803ea16ee7502a2260ee3a4bab4865d761faac77b047c431b8dca8bc2e0872"
+    },
+    {
+      "file": "05-salida-mapa.png",
+      "width": 1179,
+      "height": 2556,
+      "alpha": false,
+      "rgbSha256": "99b2f9cc4c621a134f8fb3da08a049cbd00358f664e4d3a7b165fdcc07d11311"
+    }
+  ],
+  "gpsData": "Invented simulator test route recorded by the app"
+}
