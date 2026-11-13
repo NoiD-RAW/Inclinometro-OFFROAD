@@ -80,6 +80,8 @@ class RecordingService : Service() {
     private val maxima = MaxTracker(500L)
     private var danger = 0; private var lastDangerEntries = 0
     private var dist = 0f; private var lastLoc: Location? = null; private var hasGps = false
+    private var distanceSince = 0L
+    private var lastFixTime: Long? = null
     private var samples = 0
     private var wake: PowerManager.WakeLock? = null
 
@@ -87,17 +89,22 @@ class RecordingService : Service() {
         maxima.windowMs = Config.maxWindowMs
         maxima.feed(SystemClock.elapsedRealtime(), Engine.pitch, Engine.roll)
         if (Alerts.dangerEntries != lastDangerEntries) { danger += Alerts.dangerEntries - lastDangerEntries; lastDangerEntries = Alerts.dangerEntries }
-        val loc = Engine.lastLoc
-        if (loc != null && loc !== lastLoc && (!loc.hasAccuracy() || loc.accuracy <= 35f)) {      // distancia: solo puntos fiables y con movimiento real
+        val loc = recordingLocation()
+        if (loc == null) { lastLoc = null; lastFixTime = null }
+        else if (loc !== lastLoc && (!loc.hasAccuracy() || loc.accuracy <= 35f)) {      // distancia: solo puntos fiables y con movimiento real
+            if (lastFixTime?.let { loc.time - it !in 0..5000 } == true) lastLoc = null
+            lastFixTime = loc.time
             val p = lastLoc
             if (p == null) lastLoc = loc
             else { val d = p.distanceTo(loc); if (d >= maxOf(10f, 2f * loc.accuracy) || (loc.hasSpeed() && loc.speed >= 0.7f)) { dist += d; lastLoc = loc } }
         }
     }
+    /** Cada inicio o reanudación necesita su propia posición: nunca unir viajes anteriores ni pérdidas de señal. */
+    private fun recordingLocation(): Location? = Engine.lastLoc?.takeIf { Engine.gpsFresh && it.time >= distanceSince }
     private val sampler = object : Runnable {
         override fun run() {
             if (trip < 0) return
-            val fresh = Engine.gpsFresh; val loc = Engine.lastLoc
+            val loc = recordingLocation(); val fresh = loc != null
             TripDb.get(this@RecordingService).addSample(trip, System.currentTimeMillis(), Engine.pitch, Engine.roll,
                 if (fresh) loc?.latitude else null, if (fresh) loc?.longitude else null, if (fresh) Engine.altitude else null, if (fresh) Engine.kmh else null)
             if (fresh) hasGps = true
@@ -128,6 +135,7 @@ class RecordingService : Service() {
     private fun begin(id: Long) {
         trip = id; running = true
         TripDb.get(this).trip(id)?.let { t -> maxima.set(t.max); danger = t.danger; dist = t.distance; hasGps = t.hasGps; samples = t.samples }   // retomar
+        lastLoc = null; lastFixTime = null; distanceSince = System.currentTimeMillis()
         lastDangerEntries = Alerts.dangerEntries
         Engine.acquire(this, this); Engine.listeners += onTick
         wake = (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "inclinometro:salida").apply { acquire(12 * 3600 * 1000L) }

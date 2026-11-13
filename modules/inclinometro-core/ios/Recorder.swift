@@ -23,6 +23,8 @@ final class Recorder {
   private let maxima = MaxTracker(windowMs: 500)
   private var danger = 0, lastDangerEntries = 0
   private var dist: Float = 0, lastLoc: CLLocation?, hasGps = false
+  private var distanceSince = Date.distantFuture
+  private var lastFixDate: Date?
   private var samples = 0
   private var timer: Timer?
 
@@ -96,7 +98,7 @@ final class Recorder {
   private func launch() throws {
     try loadTrip()
     try persist()
-    lastLoc = nil
+    lastLoc = nil; lastFixDate = nil; distanceSince = Date()
     lastDangerEntries = Alerts.dangerEntries
     setRunning(true)
     let e = Engine.shared
@@ -112,7 +114,10 @@ final class Recorder {
     maxima.windowMs = Int64(Config.maxWindowMs)
     maxima.feed(uptimeMs(), pitch: e.pitch, roll: e.roll)
     if Alerts.dangerEntries != lastDangerEntries { danger += Alerts.dangerEntries - lastDangerEntries; lastDangerEntries = Alerts.dangerEntries }
-    if let loc = e.lastLoc, loc !== lastLoc, loc.horizontalAccuracy < 0 || loc.horizontalAccuracy <= 35 {   // distancia: solo puntos fiables y con movimiento real
+    guard let loc = recordingLocation() else { lastLoc = nil; lastFixDate = nil; return }
+    if loc !== lastLoc, loc.horizontalAccuracy >= 0 && loc.horizontalAccuracy <= 35 {   // distancia: solo puntos fiables y con movimiento real
+      if let previous = lastFixDate, !(0...5).contains(loc.timestamp.timeIntervalSince(previous)) { lastLoc = nil }
+      lastFixDate = loc.timestamp
       if let p = lastLoc {
         let d = Float(p.distance(from: loc))
         if d >= Swift.max(10, 2 * Float(loc.horizontalAccuracy)) || loc.speed >= 0.7 { dist += d; lastLoc = loc }
@@ -120,9 +125,17 @@ final class Recorder {
     }
   }
 
+  /// Cada inicio o reanudación necesita su propia posición: nunca unir viajes anteriores ni pérdidas de señal.
+  private func recordingLocation() -> CLLocation? {
+    let e = Engine.shared
+    guard e.gpsFresh, let loc = e.lastLoc, loc.timestamp >= distanceSince else { return nil }
+    return loc
+  }
+
   private func writeSample() throws {
     guard trip >= 0, running else { return }
-    let e = Engine.shared, fresh = e.gpsFresh, loc = e.lastLoc
+    let e = Engine.shared, loc = recordingLocation()
+    let fresh = loc != nil
     try database.addSample(trip: trip, t: nowMs(), pitch: e.pitch, roll: e.roll,
                             lat: fresh ? loc?.coordinate.latitude : nil, lon: fresh ? loc?.coordinate.longitude : nil,
                             alt: fresh ? e.altitude : nil, kmh: fresh ? e.kmh : nil)
