@@ -27,12 +27,12 @@ enum Export {
   /// GPX con el recorrido; el cabeceo y el alabeo de cada punto van en <extensions>. Los puntos sin GPS se omiten.
   static func gpx(_ t: Trip, _ s: Samples) -> String {
     let f = iso(), name = t.name.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
-    var w = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.1\" creator=\"Inclinómetro OFFROAD\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n"
+    var w = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.1\" creator=\"Inclinómetro OFFROAD\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:incl=\"urn:dev.arklay.inclinometro:gpx:1\">\n"
     w += "<trk><name>\(name)</name><trkseg>\n"
     for i in 0..<s.count where s.lat[i] != nil && s.lon[i] != nil {
       w += "<trkpt lat=\"\(n(s.lat[i]))\" lon=\"\(n(s.lon[i]))\">"
       if let a = s.alt[i] { w += "<ele>\(n(a))</ele>" }
-      w += "<time>\(date(f, s.t[i]))</time><extensions><cabeceo>\(n(s.pitch[i]))</cabeceo><alabeo>\(n(s.roll[i]))</alabeo></extensions></trkpt>\n"
+      w += "<time>\(date(f, s.t[i]))</time><extensions><incl:cabeceo>\(n(s.pitch[i]))</incl:cabeceo><incl:alabeo>\(n(s.roll[i]))</incl:alabeo></extensions></trkpt>\n"
     }
     w += "</trkseg></trk>\n</gpx>\n"
     return w

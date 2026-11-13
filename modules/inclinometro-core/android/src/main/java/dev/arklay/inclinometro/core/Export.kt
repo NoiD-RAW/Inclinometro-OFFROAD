@@ -26,12 +26,12 @@ object Export {
     fun gpx(t: Trip, s: Samples, out: OutputStream) {
         val f = iso(); val name = t.name.replace("&", "&amp;").replace("<", "&lt;")
         out.bufferedWriter().use { w ->
-            w.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.1\" creator=\"Inclinómetro OFFROAD\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n")
+            w.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.1\" creator=\"Inclinómetro OFFROAD\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:incl=\"urn:dev.arklay.inclinometro:gpx:1\">\n")
             w.write("<trk><name>$name</name><trkseg>\n")
             for (i in 0 until s.size) if (s.hasPos(i)) {
                 w.write("<trkpt lat=\"${n(s.lat[i])}\" lon=\"${n(s.lon[i])}\">")
                 if (!s.alt[i].isNaN()) w.write("<ele>${n(s.alt[i])}</ele>")
-                w.write("<time>${f.format(Date(s.t[i]))}</time><extensions><cabeceo>${n(s.pitch[i])}</cabeceo><alabeo>${n(s.roll[i])}</alabeo></extensions></trkpt>\n")
+                w.write("<time>${f.format(Date(s.t[i]))}</time><extensions><incl:cabeceo>${n(s.pitch[i])}</incl:cabeceo><incl:alabeo>${n(s.roll[i])}</incl:alabeo></extensions></trkpt>\n")
             }
             w.write("</trkseg></trk>\n</gpx>\n")
         }
