@@ -1,6 +1,19 @@
-// Ajustes nativos que no cubre app.json: mini ventana (PiP) y cambios de tamaño en Android,
+// Nombre visible independiente del nombre ASCII del proyecto, mini ventana (PiP) y cambios de tamaño en Android,
 // y firma de Android (credenciales de Expo Build o variables de entorno de GitHub Actions).
-const { withAndroidManifest, withAppBuildGradle } = require('expo/config-plugins');
+const { AndroidConfig, withAndroidManifest, withAppBuildGradle, withInfoPlist, withStringsXml } = require('expo/config-plugins');
+
+function withDisplayName(config, displayName) {
+  config = withInfoPlist(config, (c) => {
+    c.modResults.CFBundleDisplayName = displayName;
+    return c;
+  });
+  return withStringsXml(config, (c) => {
+    c.modResults = AndroidConfig.Strings.setStringItem([
+      { $: { name: 'app_name' }, _: displayName },
+    ], c.modResults);
+    return c;
+  });
+}
 
 function withPip(config) {
   return withAndroidManifest(config, (c) => {
@@ -68,8 +81,8 @@ function withReleaseSigning(config) {
   });
 }
 
-module.exports = function withInclinometro(config) {
-  return withReleaseSigning(withPip(config));
+module.exports = function withInclinometro(config, { displayName = config.name } = {}) {
+  return withDisplayName(withReleaseSigning(withPip(config)), displayName);
 };
 
 module.exports.configureReleaseSigning = configureReleaseSigning;
