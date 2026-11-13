@@ -24,7 +24,7 @@ const mod = (a: number, n: number) => ((a % n) + n) % n;
  *  Se reorganiza sola: vertical, horizontal o minivista (PiP / ventana pequeña). El color principal es configurable.
  *  Traducción directa de DashView.kt: medidas en píxeles físicos. */
 export function drawIndustrial(c: SkCanvas, w: number, h: number, d: number, st: DashState, accent: number, vehicle: Vehicle, a: Assets, tripDown: boolean): Hits {
-  const roll = Math.min(40, Math.max(-40, st.roll)), pitch = Math.min(40, Math.max(-40, st.pitch));
+  const { roll, pitch } = st;
   const { heading, altitude, kmh, gps, pitchLevel, rollLevel, max: maxv, recording, elapsed } = st;
   const hits: Hits = { menu: EMPTY, hist: EMPTY, tripX: 0, tripY: 0, tripR: 0 };
   const aLight = shade(accent, 0.62, 1.1), aDark = shade(accent, 1, 0.7);
@@ -118,8 +118,9 @@ export function drawIndustrial(c: SkCanvas, w: number, h: number, d: number, st:
 
   const gauge = (r: RectF, title: string, v: number, isRear: boolean, mini: boolean) => {
     metalPanel(r);
+    const angle = Math.min(40, Math.max(-40, v));                              // solo el dibujo se limita a la escala
     const pw = rw(r), ph = rh(r), cx = rcx(r), cy = r.top + ph * 0.93;
-    const Rr = Math.min(pw * 0.378, ph * (mini ? 0.754 : 0.68)), k = 2.0, sweep = v * k * (isRear ? -1 : 1);   // el indicador del alabeo gira en el mismo sentido que el vehículo
+    const Rr = Math.min(pw * 0.378, ph * (mini ? 0.754 : 0.68)), k = 2.0, sweep = angle * k * (isRear ? -1 : 1);   // el indicador del alabeo gira en el mismo sentido que el vehículo
     const lvl = isRear ? rollLevel : pitchLevel;
     const warn = lvl === DANGER ? rgb(255, 72, 60) : lvl === CAUTION ? IND_CAUTION : 0;
     if (lvl !== OK) {                                                           // aviso: marco de color en el reloj afectado
@@ -161,7 +162,7 @@ export function drawIndustrial(c: SkCanvas, w: number, h: number, d: number, st:
     c.save(); c.rotate(sweep, cx, cy);
     c.drawPath(path((b) => { b.moveTo(cx, cy - Rr * 0.99); b.lineTo(cx - 0.05 * Rr, cy - Rr * 1.07); b.lineTo(cx + 0.05 * Rr, cy - Rr * 1.07); b.close(); }), fill(accent));
     c.restore();
-    const bmp = isRear ? vehicle.rear : vehicle.side, tilt = isRear ? -v : v;
+    const bmp = isRear ? vehicle.rear : vehicle.side, tilt = isRear ? -angle : angle;
     const vcx = cx, vcy = cy - 0.52 * Rr;
     const bw = bmp.width(), bh = bmp.height();
     const f = Math.min((0.74 * Rr) / bw, (0.42 * Rr) / bh);

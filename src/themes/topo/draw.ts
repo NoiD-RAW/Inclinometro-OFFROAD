@@ -51,7 +51,7 @@ export function drawGauge(c: SkCanvas, w: number, h: number, g: GaugeData, a: As
   const angle = Math.min(40, Math.max(-40, g.angle));                             // la escala llega a ±40°
   c.save(); frame(c, w, h);
   const col = g.level === DANGER ? WHITE : g.level === CAUTION ? g.caution : rgb(80, 200, 120);   // en peligro el fondo es rojo: cifra en blanco
-  const n = round(angle);
+  const n = round(g.angle);
   text(c, `${g.rear ? Math.abs(n) : n}°`, 95, 40, 24, col, a.monoBold, false, a.monoFake);         // el alabeo se muestra siempre en positivo
   c.drawCircle(95, 112, 56, fill(BLACK));
   c.drawCircle(95, 112, 56, stroke(rgb(68, 68, 68), 1, 'round'));
