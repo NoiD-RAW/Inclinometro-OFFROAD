@@ -124,8 +124,27 @@ final class Engine: NSObject, CLLocationManagerDelegate {
   func locationManagerDidChangeAuthorization(_ m: CLLocationManager) {
     guard m.authorizationStatus != .notDetermined else { return }
     if hasLocationPermission { startGps(); setBackground(Recorder.shared.active) }   // permiso concedido con una salida ya en marcha
+    else { locationDenied() }
     let w = permissionWaiters; permissionWaiters.removeAll()
     for f in w { f(hasLocationPermission) }
+  }
+  func locationManager(_ m: CLLocationManager, didFailWithError error: Error) {
+    guard let failure = error as? CLError else { return }
+    switch failure.code {
+    case .denied: locationDenied()
+    case .headingFailure:
+      magHeading = nil
+      dispatch()
+    default: break       // locationUnknown es transitorio: Core Location sigue buscando una posición.
+    }
+  }
+  private func locationDenied() {
+    lm.stopUpdatingLocation(); lm.stopUpdatingHeading()
+    lm.allowsBackgroundLocationUpdates = false
+    lm.showsBackgroundLocationIndicator = false
+    gpsOn = false
+    lastLoc = nil; prevLoc = nil; gpsBearing = nil; altitude = nil; kmh = 0
+    dispatch()
   }
   /// Arranca el GPS si hay permiso (también se llama al concederlo). Sin permiso la app sigue funcionando, sin rumbo GPS, altitud ni velocidad.
   func startGps() {
