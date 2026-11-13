@@ -14,6 +14,12 @@
         "simulator": true
       }
     },
+    "production-recovery": {
+      "extends": "production",
+      "android": {
+        "resourceClass": "large"
+      }
+    },
     "production": {
       "distribution": "store",
       "autoIncrement": true,
