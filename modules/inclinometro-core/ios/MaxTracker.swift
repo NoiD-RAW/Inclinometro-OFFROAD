@@ -12,11 +12,13 @@ final class MaxTracker {
   init(windowMs: Int64) { self.windowMs = windowMs }
 
   func reset() { max = [0, 0, 0, 0]; times.removeAll(); vals.removeAll() }
-  func set(_ values: [Float]) { for i in 0..<4 { max[i] = values[i] } }
+  func set(_ values: [Float]) { for i in 0..<4 { max[i] = values[i] }; times.removeAll(); vals.removeAll() }
 
   /// Añade una lectura (t en ms). Devuelve true si algún máximo ha subido.
   @discardableResult
   func feed(_ t: Int64, pitch: Float, roll: Float) -> Bool {
+    // Los sensores llegan cada ~20 ms: una pausa no demuestra una inclinación sostenida.
+    if let last = times.last, t < last || t - last > 250 { times.removeAll(); vals.removeAll() }
     let d: [Float] = [Swift.max(0, pitch), Swift.max(0, -pitch), Swift.max(0, roll), Swift.max(0, -roll)]
     times.append(t); vals.append(d)
     while times.count > 1 && t - times[1] >= windowMs { times.removeFirst(); vals.removeFirst() }   // ventana justa: la lectura más antigua tiene al menos windowMs

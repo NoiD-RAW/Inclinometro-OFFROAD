@@ -12,10 +12,12 @@ class MaxTracker(var windowMs: Long) {
     private val vals = ArrayDeque<FloatArray>()
 
     fun reset() { max.fill(0f); times.clear(); vals.clear() }
-    fun set(values: FloatArray) { for (i in 0..3) max[i] = values[i] }
+    fun set(values: FloatArray) { for (i in 0..3) max[i] = values[i]; times.clear(); vals.clear() }
 
     /** Añade una lectura (t en ms). Devuelve true si algún máximo ha subido. */
     fun feed(t: Long, pitch: Float, roll: Float): Boolean {
+        // Los sensores llegan cada ~20 ms: una pausa no demuestra una inclinación sostenida.
+        times.lastOrNull()?.let { if (t < it || t - it > 250L) { times.clear(); vals.clear() } }
         val d = floatArrayOf(max(0f, pitch), max(0f, -pitch), max(0f, roll), max(0f, -roll))
         times.addLast(t); vals.addLast(d)
         while (times.size > 1 && t - times[1] >= windowMs) { times.removeFirst(); vals.removeFirst() }   // ventana justa: la lectura más antigua tiene al menos windowMs
