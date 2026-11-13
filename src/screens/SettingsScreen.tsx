@@ -248,7 +248,8 @@ function Preview({ theme, vehicle }: { theme: Theme; vehicle: ReturnType<typeof 
   const k = w / screen.width;
   const D = theme.Dash;
   return (
-    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ width: '100%', height: w ? screen.height * k : 1, overflow: 'hidden', backgroundColor: css(rgb(16, 16, 18)) }} pointerEvents="none">
+    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ width: '100%', height: w ? screen.height * k : 1, overflow: 'hidden', backgroundColor: css(rgb(16, 16, 18)) }}
+      pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {w > 0 && (
         <View style={{ width: screen.width, height: screen.height, transform: [{ translateX: -(screen.width * (1 - k)) / 2 }, { translateY: -(screen.height * (1 - k)) / 2 }, { scale: k }] }}>
           <D state={DEMO} accent={accentOf(theme)} vehicle={vehicle} actions={{ onSettings: noop, onHistory: noop, onTrip: noop }} pip={false} />

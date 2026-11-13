@@ -150,7 +150,8 @@ function Main() {
     <AppCtx.Provider value={app}>
       <View style={[styles.root, { backgroundColor: css(theme.ui.background) }]}>
         {/* Deja libres la barra de estado y el notch para cualquier tema (en mini ventana no hace falta) */}
-        <View style={[styles.root, pad]} pointerEvents={onDash ? 'auto' : 'none'}>
+        <View style={[styles.root, pad]} pointerEvents={onDash ? 'auto' : 'none'} accessibilityElementsHidden={!onDash}
+          importantForAccessibility={onDash ? 'auto' : 'no-hide-descendants'}>
           <View style={styles.root}>
             <Dash state={state} accent={accent} vehicle={vehicle} actions={actions} pip={pip} />
           </View>

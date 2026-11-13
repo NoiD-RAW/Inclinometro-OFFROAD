@@ -27,9 +27,10 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run lint && npm run test:config",
+    "check": "npm run typecheck && npm run lint && npm run test:config && npm run test:ui",
     "store:privacy": "node --experimental-strip-types store/generate-privacy.mjs",
     "test:config": "node --test plugins/*.test.js",
+    "test:ui": "node --test src/themes/industrial/*.test.cjs",
     "store:check": "python3 store/comprobar_ficha.py && node --experimental-strip-types store/generate-privacy.mjs --check"
   },
   "private": true,

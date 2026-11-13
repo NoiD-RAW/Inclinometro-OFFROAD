@@ -1,45 +1,42 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRef, useState } from 'react';
-import { PixelRatio, Pressable, StyleSheet, Text, type GestureResponderEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAssets } from '../../gfx/assets';
 import { BLACK, css, rgb, shade } from '../../gfx/color';
-import { R, contains, drawImage, drawRect, fill, isEmpty, linear, bitmapPaint, tileShader, type RectF } from '../../gfx/draw';
+import { R, drawImage, drawRect, fill, linear, bitmapPaint, tileShader, type RectF } from '../../gfx/draw';
 import { SkiaView } from '../../gfx/SkiaView';
 import { KINDS, type DashProps, type Theme, type ThemeUi } from '../types';
-import { IND_CAUTION, IND_DANGER, drawIndustrial, type Hits } from './drawDash';
+import { industrialAccessibility, industrialReadings, sameIndustrialGeometry, type IndustrialGeometry } from './accessibility';
+import { IND_CAUTION, IND_DANGER, drawIndustrial } from './drawDash';
 
 /** Pantalla principal: todo dibujado en un lienzo, con la rueda de Ajustes, el historial y el botón de salidas como zonas táctiles. */
-function IndustrialDash({ state, accent, vehicle, actions }: DashProps) {
+function IndustrialDash({ state, accent, vehicle, actions, pip }: DashProps) {
   const a = useAssets();
   const [tripDown, setTripDown] = useState(false);
-  const hits = useRef<Hits | null>(null);
-  const d = PixelRatio.get();
-
-  const where = (e: GestureResponderEvent) => {
-    const x = e.nativeEvent.locationX * d, y = e.nativeEvent.locationY * d, h = hits.current;
-    if (!h) return { menu: false, hist: false, trip: false };
-    return {
-      menu: !isEmpty(h.menu) && contains(h.menu, x, y),
-      hist: !isEmpty(h.hist) && contains(h.hist, x, y),
-      trip: h.tripR > 0 && Math.hypot(x - h.tripX, y - h.tripY) <= h.tripR,
-    };
-  };
+  const [geometry, setGeometry] = useState<IndustrialGeometry | null>(null);
+  const drawn = useRef<IndustrialGeometry | null>(null);
+  const committed = useRef<IndustrialGeometry | null>(null);
+  const onDrawn = useCallback(() => {
+    const next = drawn.current;
+    if (next && !sameIndustrialGeometry(committed.current, next)) {
+      committed.current = next;
+      setGeometry(next);
+    }
+  }, []);
+  const { controls, readings } = industrialAccessibility(geometry, state.recording, pip);
+  const activate = { settings: actions.onSettings, history: actions.onHistory, trip: actions.onTrip };
   return (
-    <SkiaView
-      style={StyleSheet.absoluteFill}
-      deps={[state, accent, vehicle, a, tripDown]}
-      draw={(c, w, h, dd) => { hits.current = drawIndustrial(c, w, h, dd, state, accent, vehicle, a, tripDown); }}
-      onStartShouldSetResponder={(e) => { const t = where(e); if (t.trip) setTripDown(true); return t.menu || t.hist || t.trip; }}
-      onResponderRelease={(e) => {
-        setTripDown(false);
-        const t = where(e);
-        if (t.menu) actions.onSettings(); else if (t.hist) actions.onHistory(); else if (t.trip) actions.onTrip();
-      }}
-      onResponderTerminate={() => setTripDown(false)}
-      accessible
-      accessibilityLabel="Inclinómetro. Ajustes, historial y botón de salidas"
-    />
+    <View style={StyleSheet.absoluteFill} accessible={false}>
+      <SkiaView style={StyleSheet.absoluteFill} pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+        deps={[state, accent, vehicle, a, tripDown]} onDrawn={onDrawn}
+        draw={(c, w, h, d) => { drawn.current = { width: w, height: h, density: d, hits: drawIndustrial(c, w, h, d, state, accent, vehicle, a, tripDown) }; }} />
+      {readings && <View accessible accessibilityRole="text" accessibilityLabel={industrialReadings(state)} accessibilityLiveRegion="none"
+        style={[styles.dashboardTarget, readings]} />}
+      {controls.map(({ id, label, bounds }) => <Pressable key={id} accessible accessibilityRole="button" accessibilityLabel={label}
+        onPress={activate[id]} onPressIn={id === 'trip' ? () => setTripDown(true) : undefined} onPressOut={id === 'trip' ? () => setTripDown(false) : undefined}
+        style={[styles.dashboardTarget, bounds]} />)}
+    </View>
   );
 }
 
@@ -106,6 +103,7 @@ const IndustrialUi: ThemeUi = {
 };
 
 const styles = StyleSheet.create({
+  dashboardTarget: { position: 'absolute' },
   btn: { minHeight: 48 },
   btnFill: { flex: 1, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 4 },
   btnText: { textAlign: 'center' },
